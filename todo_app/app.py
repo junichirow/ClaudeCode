@@ -1,15 +1,55 @@
+import hmac
+import os
 import sqlite3
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from flask import Flask, abort, g, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, g, redirect, render_template, request, url_for
 
 # データベースファイルはこのファイルと同じフォルダに置く
 DEFAULT_DATABASE = Path(__file__).parent / "todo.db"
 
 
-def create_app(database=DEFAULT_DATABASE):
+def create_app(
+    database=DEFAULT_DATABASE,
+    username=os.environ.get("APP_USERNAME", "admin"),
+    password=os.environ.get("APP_PASSWORD"),
+):
+    # Render 上（環境変数 RENDER が設定される）ではパスワード未設定のまま公開しない
+    if os.environ.get("RENDER") and not password:
+        raise RuntimeError("環境変数 APP_PASSWORD を設定してください")
+
     app = Flask(__name__)
     app.config["DATABASE"] = str(database)
+
+    @app.before_request
+    def require_login():
+        # パスワード未設定（ローカル開発）のときは認証しない
+        if not password:
+            return None
+        auth = request.authorization
+        if (
+            auth is None
+            or auth.type != "basic"
+            or not hmac.compare_digest(auth.username or "", username)
+            or not hmac.compare_digest(auth.password or "", password)
+        ):
+            return Response(
+                "ログインが必要です",
+                401,
+                {"WWW-Authenticate": 'Basic realm="TODO", charset="UTF-8"'},
+            )
+        return None
+
+    @app.before_request
+    def check_origin():
+        # 他サイトから勝手にフォームを送信される（CSRF）のを防ぐ
+        if request.method != "POST":
+            return None
+        origin = request.headers.get("Origin") or request.headers.get("Referer")
+        if origin and urlsplit(origin).netloc != request.host:
+            abort(403)
+        return None
 
     def get_db():
         if "db" not in g:
