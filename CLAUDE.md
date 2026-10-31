@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Python の小さな学習・実験用リポジトリ。アプリごとにサブフォルダを分ける方針。
 
-- `now.py` — 現在の日本時間を `YYYY年MM月DD日 HH時MM分SS秒` 形式で表示する。標準ライブラリのみ
+- `now_app/now.py` — 現在の日本時間を `YYYY年MM月DD日 HH時MM分SS秒` 形式で表示する。標準ライブラリのみ
 - `todo_app/` — Flask + SQLite の TODO リスト Web アプリ
 
 ## 環境
@@ -19,7 +19,7 @@ Python の小さな学習・実験用リポジトリ。アプリごとにサブ�
 
 ```bash
 source .venv/bin/activate                 # 仮想環境を有効化
-python now.py                             # 時刻表示
+python now_app/now.py                     # 時刻表示
 
 pip install -r todo_app/requirements.txt  # TODOアプリの依存をインストール
 cd todo_app && python app.py              # http://127.0.0.1:5001 で起動（debug モード。5000 は macOS の AirPlay と衝突するため避ける）
