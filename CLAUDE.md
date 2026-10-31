@@ -34,6 +34,16 @@ cd todo_app && python -m unittest test_app.TodoAppTest.test_削除  # 単一テ�
 - 更新系（追加・完了切替・削除）はすべて POST で、処理後 `/` にリダイレクトする。存在しない ID は 404
 - `todo.db` は `.gitignore` 済み
 - テストメソッド名は日本語
+- `before_request` で2つのチェックをする：
+  - Basic 認証（`APP_USERNAME` / `APP_PASSWORD`）。`APP_PASSWORD` 未設定なら認証なし（ローカル開発用）
+  - CSRF 対策として、POST の `Origin`/`Referer` が自ホストと一致するか確認
+- 環境変数 `RENDER` があるのに `APP_PASSWORD` が無いと `create_app` が例外を出して起動を拒否する
+
+## デプロイ（Render）
+
+- ルートの `render.yaml`（Blueprint）で定義。`rootDir: todo_app`、本番は `gunicorn "app:create_app()"` で起動（`app.run(debug=True)` は使われない）
+- 無料プランのためファイルシステムは揮発性で、再デプロイ・再起動で `todo.db` の内容は消える（了承済み）
+- `main` へのプッシュで自動デプロイされる
 
 ## 規約
 

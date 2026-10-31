@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: todo-app
+    runtime: python
+    plan: free
+    rootDir: todo_app
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT "app:create_app()"
+    envVars:
+      # ログイン用。初回のデプロイ時に Render の画面で入力する
+      - key: APP_USERNAME
+        sync: false
+      - key: APP_PASSWORD
+        sync: false
