@@ -26,6 +26,14 @@ class TodoAppTest(unittest.TestCase):
         self.client.post("/add", data={"title": "牛乳を買う"})
         self.assertIn("牛乳を買う", self.client.get("/").get_data(as_text=True))
 
+    def test_4つ目を追加すると一番古いものが消える(self):
+        for title in ["一つ目", "二つ目", "三つ目", "四つ目"]:
+            self.client.post("/add", data={"title": title})
+        html = self.client.get("/").get_data(as_text=True)
+        self.assertNotIn("一つ目", html)
+        for title in ["二つ目", "三つ目", "四つ目"]:
+            self.assertIn(title, html)
+
     def test_空のタイトルは追加しない(self):
         self.client.post("/add", data={"title": "   "})
         self.assertIn("タスクはまだありません", self.client.get("/").get_data(as_text=True))
