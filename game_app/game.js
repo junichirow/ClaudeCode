@@ -666,34 +666,41 @@ function drawPolarBear(b) {
   oval(0, -18, 14, 10, shade); // 口まわり
   oval(0, -23, 5.5, 3.8, "#222"); // 鼻
 
-  // 目（怒ると赤く光る）
-  const eye = angry && !f ? "#ff2a2a" : "#111";
-  circle(-11, -36, 3.5, eye);
-  circle(11, -36, 3.5, eye);
-  circle(-10, -37, 1, "#fff");
-  circle(12, -37, 1, "#fff");
-
-  // つり上がった眉
-  ctx.strokeStyle = "#444";
+  // 閉じた目（寝ている）
+  ctx.strokeStyle = "#333";
   ctx.lineWidth = 2.5;
+  ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(-18, -46);
-  ctx.lineTo(-6, -41);
-  ctx.moveTo(18, -46);
-  ctx.lineTo(6, -41);
+  ctx.arc(-11, -38, 5, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.moveTo(16, -38);
+  ctx.arc(11, -38, 5, 0.15 * Math.PI, 0.85 * Math.PI);
   ctx.stroke();
 
-  // 口（攻撃のときに大きく開く）
-  if (b.t % 40 >= 16 && b.t % 40 < 26) {
-    oval(0, -12, 6, 4, "#7a1f2b");
-  } else {
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(-6, -13);
-    ctx.lineTo(0, -16);
-    ctx.lineTo(6, -13);
-    ctx.stroke();
+  // 寝息で小さく開く口
+  const breath = (Math.sin(b.t / 20) + 1) / 2;
+  oval(0, -11, 3 + breath * 1.5, 2 + breath * 1.5, "#7a1f2b");
+
+  // 鼻ちょうちん（ふくらんだりしぼんだり）
+  const bubble = 3 + breath * 9;
+  ctx.fillStyle = "rgba(190,230,255,0.45)";
+  ctx.strokeStyle = "rgba(255,255,255,0.8)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(7 + bubble * 0.6, -22 + bubble * 0.2, bubble, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.lineCap = "butt";
+
+  // Zzz（体力が半分を切るとうなされて赤くなる）
+  ctx.fillStyle = angry && !f ? "#ff4d6d" : "#9ec5e8";
+  ctx.textAlign = "center";
+  for (let i = 0; i < 3; i++) {
+    const p = ((b.t / 60 + i / 3) % 1); // 0→1 で上にのぼって消える
+    ctx.globalAlpha = 1 - p;
+    ctx.font = `bold ${10 + i * 4}px sans-serif`;
+    ctx.fillText("Z", 34 + p * 18 + i * 6, -50 - p * 30);
   }
+  ctx.globalAlpha = 1;
 
   ctx.restore();
 }
