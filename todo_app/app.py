@@ -18,16 +18,12 @@ def create_app(
     username=os.environ.get("APP_USERNAME", "admin"),
     password=os.environ.get("APP_PASSWORD"),
 ):
-    # Render 上（環境変数 RENDER が設定される）ではパスワード未設定のまま公開しない
-    if os.environ.get("RENDER") and not password:
-        raise RuntimeError("環境変数 APP_PASSWORD を設定してください")
-
     app = Flask(__name__)
     app.config["DATABASE"] = str(database)
 
     @app.before_request
     def require_login():
-        # パスワード未設定（ローカル開発）のときは認証しない
+        # APP_PASSWORD 未設定のときは認証しない（誰でも使える）
         if not password:
             return None
         auth = request.authorization

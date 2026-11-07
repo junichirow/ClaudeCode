@@ -36,9 +36,8 @@ cd todo_app && python -m unittest test_app.TodoAppTest.test_削除  # 単一テ�
 - `todo.db` は `.gitignore` 済み
 - テストメソッド名は日本語
 - `before_request` で2つのチェックをする：
-  - Basic 認証（`APP_USERNAME` / `APP_PASSWORD`）。`APP_PASSWORD` 未設定なら認証なし（ローカル開発用）
+  - Basic 認証（`APP_USERNAME` / `APP_PASSWORD`）。`APP_PASSWORD` 未設定なら認証なし（本番 Render も現在は認証なしで公開）
   - CSRF 対策として、POST の `Origin`/`Referer` が自ホストと一致するか確認
-- 環境変数 `RENDER` があるのに `APP_PASSWORD` が無いと `create_app` が例外を出して起動を拒否する
 
 ## デプロイ（Render）
 

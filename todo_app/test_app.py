@@ -1,8 +1,6 @@
-import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest import mock
 
 from app import create_app
 
@@ -93,11 +91,6 @@ class LoginTest(unittest.TestCase):
     def test_正しいパスワードで表示できる(self):
         res = self.client.get("/", auth=("user", "secret"))
         self.assertEqual(res.status_code, 200)
-
-    def test_Render上でパスワード未設定なら起動しない(self):
-        with mock.patch.dict(os.environ, {"RENDER": "true"}):
-            with self.assertRaises(RuntimeError):
-                create_app(Path(self.tmpdir.name) / "test.db", password=None)
 
 
 if __name__ == "__main__":
