@@ -1,0 +1,35 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #05060f;
+  color: #cfd6ff;
+  font-family: system-ui, -apple-system, "Hiragino Sans", sans-serif;
+}
+
+main {
+  text-align: center;
+}
+
+canvas {
+  display: block;
+  width: min(480px, 100vw, calc(85vh * 0.75));
+  height: auto;
+  margin: 0 auto;
+  background: #000;
+  border: 2px solid #2a2f5a;
+  border-radius: 8px;
+  touch-action: none;
+}
+
+.help {
+  font-size: 13px;
+  line-height: 1.6;
+  opacity: 0.7;
+}

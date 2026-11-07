@@ -8,6 +8,7 @@ Python の小さな学習・実験用リポジトリ。アプリごとにサブ�
 
 - `now_app/now.py` — 現在の日本時間を `YYYY年MM月DD日 HH時MM分SS秒` 形式で表示する。標準ライブラリのみ
 - `todo_app/` — Flask + SQLite の TODO リスト Web アプリ
+- `game_app/` — HTML/CSS/JS（Canvas）だけのシューティングゲーム。ビルド不要。`.github/workflows/pages.yml` で `main` へのプッシュ時に GitHub Pages へ公開
 
 ## 環境
 
