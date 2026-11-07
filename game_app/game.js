@@ -52,7 +52,7 @@ let player, bullets, enemies, enemyBullets, stars;
 let particles = []; // タイトル画面でも更新されるので最初から空配列にしておく
 let score, lives, level, spawnTimer, shotCooldown, invincible, frame;
 let boss, bossCount, nextBossScore, warningTimer;
-const BOSS_INTERVAL = 3000; // この点数ごとにサメのボスが出る
+const BOSS_INTERVAL = 3000; // この点数ごとにボスが出る
 let highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
 
 let gameOverAt = 0;
@@ -86,11 +86,39 @@ function startGame() {
   Sound.playMusic("main");
 }
 
-// ---- ボス（サメ） ----
+// ---- ボス ----
+// サメを 2 回倒すと、3 回目は大ボスのシロクマが出る（以降このくり返し）
+const BOSS_TYPES = {
+  shark: {
+    name: "サメ",
+    rx: 60, // 当たり判定の楕円の半径
+    ry: 24,
+    baseY: 120, // 泳ぐ高さ
+    hp: (n) => 50 + n * 20,
+    speed: (n) => 1.5 + n * 0.3,
+    points: 3000,
+    colors: ["#9ec5e8", "#ffffff"],
+    gauge: "#4cc9f0",
+  },
+  bear: {
+    name: "大ボス シロクマ",
+    rx: 52,
+    ry: 56,
+    baseY: 140,
+    hp: (n) => 200 + n * 20,
+    speed: (n) => 1.2 + n * 0.15,
+    points: 10000,
+    colors: ["#ffffff", "#e63946"],
+    gauge: "#e63946",
+  },
+};
+
 function spawnBoss() {
   bossCount++;
-  const hp = 50 + bossCount * 20;
-  boss = { x: W / 2, y: -80, vx: 1.5 + bossCount * 0.3, hp, maxHp: hp, t: 0, flash: 0 };
+  const kind = bossCount % 3 === 0 ? "bear" : "shark";
+  const type = BOSS_TYPES[kind];
+  const hp = type.hp(bossCount);
+  boss = { kind, type, x: W / 2, y: -80, vx: type.speed(bossCount), hp, maxHp: hp, t: 0, flash: 0 };
   warningTimer = 120;
   Sound.warning();
   Sound.playMusic("boss");
@@ -100,15 +128,20 @@ function updateBoss() {
   const b = boss;
   b.t++;
   if (b.flash > 0) b.flash--;
-  if (b.y < 120) {
+  if (b.y < b.type.baseY) {
     b.y += 1.5; // 登場中は降りてくるだけ
     return;
   }
-  // 左右に泳ぎ、上下にゆらゆら
+  // 左右に動き、上下にゆらゆら
   b.x += b.vx;
   if (b.x < 80 || b.x > W - 80) b.vx *= -1;
-  b.y = 120 + Math.sin(b.t / 40) * 20;
+  b.y = b.type.baseY + Math.sin(b.t / 40) * 20;
 
+  if (b.kind === "bear") updateBear(b);
+  else updateShark(b);
+}
+
+function updateShark(b) {
   // 扇状の弾
   if (b.t % 90 === 0) {
     for (let i = -3; i <= 3; i++) {
@@ -124,17 +157,52 @@ function updateBoss() {
   }
 }
 
-// サメの胴体はおおよそ横長の楕円なので、楕円で当たり判定する
+function updateBear(b) {
+  // 全方位に広がる輪っか弾（少しずつ角度をずらす）
+  if (b.t % 80 === 0) {
+    const n = 18;
+    const offset = b.t / 80 * 0.17;
+    for (let i = 0; i < n; i++) {
+      const a = offset + (Math.PI * 2 * i) / n;
+      enemyBullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 2.6, vy: Math.sin(a) * 2.6 });
+    }
+  }
+  // 両手から自機狙いの 3 方向弾
+  if (b.t % 40 === 20) {
+    for (const hx of [-60, 60]) {
+      const a = Math.atan2(player.y - (b.y + 20), player.x - (b.x + hx));
+      for (const d of [-0.18, 0, 0.18]) {
+        enemyBullets.push({
+          x: b.x + hx,
+          y: b.y + 20,
+          vx: Math.cos(a + d) * 4,
+          vy: Math.sin(a + d) * 4,
+        });
+      }
+    }
+  }
+  // 体力が半分を切ると怒って、ぐるぐる回る弾も撃つ
+  if (b.hp < b.maxHp / 2 && b.t % 7 === 0) {
+    const a = b.t / 12;
+    for (const s of [0, Math.PI]) {
+      enemyBullets.push({ x: b.x, y: b.y, vx: Math.cos(a + s) * 3, vy: Math.sin(a + s) * 3 });
+    }
+  }
+}
+
+// ボスの体はおおよそ楕円なので、楕円で当たり判定する
 function hitBoss(x, y, r) {
-  const dx = (x - boss.x) / (60 + r);
-  const dy = (y - boss.y) / (24 + r);
+  const dx = (x - boss.x) / (boss.type.rx + r);
+  const dy = (y - boss.y) / (boss.type.ry + r);
   return dx * dx + dy * dy < 1;
 }
 
 function defeatBoss() {
-  score += 3000;
-  for (let i = 0; i < 5; i++) {
-    explode(boss.x + rand(-50, 50), boss.y + rand(-20, 20), i % 2 ? "#9ec5e8" : "#ffffff", 30);
+  const type = boss.type;
+  score += type.points;
+  const count = boss.kind === "bear" ? 9 : 5;
+  for (let i = 0; i < count; i++) {
+    explode(boss.x + rand(-50, 50), boss.y + rand(-30, 30), type.colors[i % 2], 30);
   }
   enemyBullets = [];
   boss = null;
@@ -294,8 +362,8 @@ function update() {
   } else {
     const hitBullet = enemyBullets.find((b) => hit(b.x, b.y, 4, player.x, player.y, 10));
     const hitEnemy = enemies.find((e) => hit(e.x, e.y, e.r, player.x, player.y, 12));
-    const hitShark = boss && hitBoss(player.x, player.y, 10);
-    if (hitBullet || hitEnemy || hitShark) {
+    const hitBossBody = boss && hitBoss(player.x, player.y, 10);
+    if (hitBullet || hitEnemy || hitBossBody) {
       if (hitBullet) hitBullet.y = H + 100;
       if (hitEnemy) hitEnemy.hp = 0;
       damage();
@@ -361,7 +429,7 @@ function draw() {
   for (const b of bullets) ctx.fillRect(b.x - 2, b.y - 8, 4, 12);
 
   for (const e of enemies) drawEnemy(e);
-  if (boss) drawShark(boss);
+  if (boss) boss.kind === "bear" ? drawPolarBear(boss) : drawShark(boss);
 
   ctx.fillStyle = "#ff5c8a";
   for (const b of enemyBullets) {
@@ -388,11 +456,11 @@ function draw() {
     // ボスの体力ゲージ
     ctx.fillStyle = "#333";
     ctx.fillRect(W / 2 - 100, 60, 200, 8);
-    ctx.fillStyle = "#4cc9f0";
+    ctx.fillStyle = boss.type.gauge;
     ctx.fillRect(W / 2 - 100, 60, (200 * boss.hp) / boss.maxHp, 8);
   }
-  if (warningTimer > 0 && Math.floor(warningTimer / 15) % 2 === 0) {
-    drawCenterText("⚠ サメが来る！", 30, H / 2, "#ff4d6d");
+  if (boss && warningTimer > 0 && Math.floor(warningTimer / 15) % 2 === 0) {
+    drawCenterText(`⚠ ${boss.type.name}が来る！`, 30, H / 2, "#ff4d6d");
   }
 
   drawSoundStatus();
@@ -541,6 +609,90 @@ function drawShark(b) {
     ctx.lineTo(tx + 5, 7);
     ctx.closePath();
     ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// 大ボス：シロクマ（正面向き。赤と白の横縞の T シャツを着ている）
+function drawPolarBear(b) {
+  const f = b.flash > 0;
+  const fur = f ? "#ffffff" : "#f4f1e8";
+  const shade = f ? "#ffffff" : "#d8d2c4";
+  const red = f ? "#ffffff" : "#e63946";
+  const angry = b.hp < b.maxHp / 2;
+  const swing = Math.sin(b.t / 8) * 4; // 手足のゆれ
+
+  ctx.save();
+  ctx.translate(b.x, b.y);
+
+  // 足
+  oval(-20, 50 + swing / 2, 13, 9, fur);
+  oval(20, 50 - swing / 2, 13, 9, fur);
+
+  // 手（袖の先）
+  circle(-60, 22 + swing, 10, fur);
+  circle(60, 22 - swing, 10, fur);
+
+  // T シャツ（形でクリップして横縞を塗る）
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(-28, -6);
+  ctx.lineTo(-60, 6);
+  ctx.lineTo(-52, 28);
+  ctx.lineTo(-40, 22);
+  ctx.lineTo(-40, 48);
+  ctx.lineTo(40, 48);
+  ctx.lineTo(40, 22);
+  ctx.lineTo(52, 28);
+  ctx.lineTo(60, 6);
+  ctx.lineTo(28, -6);
+  ctx.closePath();
+  ctx.clip();
+  for (let i = 0, y = -8; y < 50; i++, y += 7) {
+    ctx.fillStyle = i % 2 === 0 ? red : "#ffffff";
+    ctx.fillRect(-62, y, 124, 7);
+  }
+  ctx.restore();
+
+  // 耳
+  circle(-24, -52, 11, fur);
+  circle(24, -52, 11, fur);
+  circle(-24, -52, 5.5, shade);
+  circle(24, -52, 5.5, shade);
+
+  // 頭
+  circle(0, -30, 30, fur);
+  oval(0, -18, 14, 10, shade); // 口まわり
+  oval(0, -23, 5.5, 3.8, "#222"); // 鼻
+
+  // 目（怒ると赤く光る）
+  const eye = angry && !f ? "#ff2a2a" : "#111";
+  circle(-11, -36, 3.5, eye);
+  circle(11, -36, 3.5, eye);
+  circle(-10, -37, 1, "#fff");
+  circle(12, -37, 1, "#fff");
+
+  // つり上がった眉
+  ctx.strokeStyle = "#444";
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-18, -46);
+  ctx.lineTo(-6, -41);
+  ctx.moveTo(18, -46);
+  ctx.lineTo(6, -41);
+  ctx.stroke();
+
+  // 口（攻撃のときに大きく開く）
+  if (b.t % 40 >= 16 && b.t % 40 < 26) {
+    oval(0, -12, 6, 4, "#7a1f2b");
+  } else {
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-6, -13);
+    ctx.lineTo(0, -16);
+    ctx.lineTo(6, -13);
+    ctx.stroke();
   }
 
   ctx.restore();
