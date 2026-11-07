@@ -37,7 +37,8 @@ window.addEventListener("pointerup", () => (touchX = null));
 // ---- ゲーム状態 ----
 let state = "title"; // title | playing | gameover
 let paused = false;
-let player, bullets, enemies, enemyBullets, particles, stars;
+let player, bullets, enemies, enemyBullets, stars;
+let particles = []; // タイトル画面でも更新されるので最初から空配列にしておく
 let score, lives, level, spawnTimer, shotCooldown, invincible, frame;
 let boss, bossCount, nextBossScore, warningTimer;
 const BOSS_INTERVAL = 3000; // この点数ごとにサメのボスが出る
