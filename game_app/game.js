@@ -1,4 +1,4 @@
-// スターシューター：Canvas だけで動く縦スクロールシューティング
+// クマクマシューティング：Canvas だけで動く縦スクロールシューティング
 "use strict";
 
 const canvas = document.getElementById("game");
@@ -10,29 +10,40 @@ const HIGH_SCORE_KEY = "star-shooter-high-score";
 // ---- 入力 ----
 const keys = new Set();
 window.addEventListener("keydown", (e) => {
+  Sound.unlock();
   if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].includes(e.key)) {
     e.preventDefault();
   }
   keys.add(e.key.toLowerCase());
   if (e.key === "Enter" || e.key === " ") onAction();
-  if (e.key.toLowerCase() === "p" && state === "playing") paused = !paused;
+  if (e.key.toLowerCase() === "p" && state === "playing") {
+    paused = !paused;
+    Sound.setPaused(paused);
+  }
+  if (e.key.toLowerCase() === "m") Sound.toggleMute();
 });
 window.addEventListener("keyup", (e) => keys.delete(e.key.toLowerCase()));
 
 // タッチ：指の位置に自機を寄せる（ショットは自動）
-let touchX = null;
-function canvasX(clientX) {
+let touch = null; // 指の位置（キャンバス座標）。触れていないときは null
+const TOUCH_OFFSET_Y = 60; // 指でクマが隠れないよう、指より少し上に自機を置く
+function canvasPoint(e) {
   const rect = canvas.getBoundingClientRect();
-  return ((clientX - rect.left) / rect.width) * W;
+  return {
+    x: ((e.clientX - rect.left) / rect.width) * W,
+    y: ((e.clientY - rect.top) / rect.height) * H,
+  };
 }
 canvas.addEventListener("pointerdown", (e) => {
-  touchX = canvasX(e.clientX);
+  Sound.unlock();
+  touch = canvasPoint(e);
   onAction();
 });
 canvas.addEventListener("pointermove", (e) => {
-  if (touchX !== null) touchX = canvasX(e.clientX);
+  if (touch !== null) touch = canvasPoint(e);
 });
-window.addEventListener("pointerup", () => (touchX = null));
+window.addEventListener("pointerup", () => (touch = null));
+window.addEventListener("pointercancel", () => (touch = null));
 
 // ---- ゲーム状態 ----
 let state = "title"; // title | playing | gameover
@@ -71,6 +82,8 @@ function startGame() {
   warningTimer = 0;
   paused = false;
   state = "playing";
+  Sound.setPaused(false);
+  Sound.playMusic("main");
 }
 
 // ---- ボス（サメ） ----
@@ -79,6 +92,8 @@ function spawnBoss() {
   const hp = 50 + bossCount * 20;
   boss = { x: W / 2, y: -80, vx: 1.5 + bossCount * 0.3, hp, maxHp: hp, t: 0, flash: 0 };
   warningTimer = 120;
+  Sound.warning();
+  Sound.playMusic("boss");
 }
 
 function updateBoss() {
@@ -124,6 +139,8 @@ function defeatBoss() {
   enemyBullets = [];
   boss = null;
   nextBossScore = score + BOSS_INTERVAL;
+  Sound.bossDown();
+  Sound.playMusic("main");
 }
 
 stars = Array.from({ length: 80 }, () => ({
@@ -185,16 +202,20 @@ function update() {
   if (keys.has("arrowright") || keys.has("d")) player.x += player.speed;
   if (keys.has("arrowup") || keys.has("w")) player.y -= player.speed;
   if (keys.has("arrowdown") || keys.has("s")) player.y += player.speed;
-  if (touchX !== null) player.x += Math.max(-8, Math.min(8, touchX - player.x));
+  if (touch !== null) {
+    player.x += Math.max(-8, Math.min(8, touch.x - player.x));
+    player.y += Math.max(-8, Math.min(8, touch.y - TOUCH_OFFSET_Y - player.y));
+  }
   player.x = Math.max(player.w / 2, Math.min(W - player.w / 2, player.x));
   player.y = Math.max(H / 2, Math.min(H - player.h, player.y));
 
   // ショット（スペース長押し / タッチ中は自動連射）
   if (shotCooldown > 0) shotCooldown--;
-  if ((keys.has(" ") || touchX !== null) && shotCooldown === 0) {
+  if ((keys.has(" ") || touch !== null) && shotCooldown === 0) {
     bullets.push({ x: player.x - 8, y: player.y - 10 });
     bullets.push({ x: player.x + 8, y: player.y - 10 });
     shotCooldown = 9;
+    Sound.shot();
   }
   for (const b of bullets) b.y -= 9;
   bullets = bullets.filter((b) => b.y > -10);
@@ -233,8 +254,10 @@ function update() {
         if (e.hp <= 0) {
           score += e.points;
           explode(e.x, e.y, e.type === "big" ? "#ff9f1c" : "#ff4d6d", e.type === "big" ? 40 : 16);
+          Sound.explode(e.type === "big");
         } else {
           explode(b.x, b.y, "#fff", 3);
+          Sound.hit();
         }
         break;
       }
@@ -249,6 +272,7 @@ function update() {
         b.y = -100;
         boss.hp--;
         boss.flash = 4;
+        Sound.hit();
         if (boss.hp <= 0) {
           defeatBoss();
           break;
@@ -284,8 +308,11 @@ function damage() {
   explode(player.x, player.y, "#4cc9f0", 30);
   invincible = 120;
   enemyBullets = [];
+  Sound.damage();
   if (lives <= 0) {
     state = "gameover";
+    Sound.stopMusic();
+    Sound.gameOver();
     gameOverAt = performance.now();
     if (score > highScore) {
       highScore = score;
@@ -316,9 +343,10 @@ function draw() {
   }
 
   if (state === "title") {
-    drawCenterText("スターシューター", 40, H / 2 - 60, "#4cc9f0");
+    drawCenterText("クマクマシューティング", 36, H / 2 - 60, "#4cc9f0");
     drawCenterText("クリック / Enter でスタート", 18, H / 2 + 10);
     drawCenterText(`ハイスコア ${highScore}`, 16, H / 2 + 50, "#ffd166");
+    drawSoundStatus();
     return;
   }
 
@@ -366,6 +394,8 @@ function draw() {
   if (warningTimer > 0 && Math.floor(warningTimer / 15) % 2 === 0) {
     drawCenterText("⚠ サメが来る！", 30, H / 2, "#ff4d6d");
   }
+
+  drawSoundStatus();
 
   if (paused) drawCenterText("一時停止中（P で再開）", 22, H / 2);
 
@@ -536,6 +566,13 @@ function drawEnemy(e) {
   ctx.fill();
   ctx.fillStyle = "#000";
   ctx.fillRect(e.x - 3, e.y - 3, 6, 6);
+}
+
+function drawSoundStatus() {
+  ctx.fillStyle = "rgba(255,255,255,0.6)";
+  ctx.font = "12px sans-serif";
+  ctx.textAlign = "left";
+  ctx.fillText(Sound.isMuted() ? "♪ OFF（M）" : "♪ ON（M）", 10, H - 10);
 }
 
 function drawCenterText(text, size, y, color = "#fff") {
