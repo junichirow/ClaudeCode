@@ -9,7 +9,7 @@ from flask import Flask, Response, abort, g, redirect, render_template, request,
 # データベースファイルはこのファイルと同じフォルダに置く
 DEFAULT_DATABASE = Path(__file__).parent / "todo.db"
 
-# 一覧に残す最大件数。超えた分は古いものから消える
+# 一覧に残す最大件数。超えた分は（今追加したもの以外から）ランダムに消える
 MAX_TODOS = 3
 
 
@@ -91,12 +91,13 @@ def create_app(
         title = request.form.get("title", "").strip()
         if title:
             db = get_db()
-            db.execute("INSERT INTO todos (title) VALUES (?)", (title,))
-            # 新しい順に MAX_TODOS 件だけ残し、それより古いものは消す
+            cur = db.execute("INSERT INTO todos (title) VALUES (?)", (title,))
+            # MAX_TODOS 件を超えたら、今追加したもの以外からランダムに選んで消す
             db.execute(
-                "DELETE FROM todos WHERE id NOT IN"
-                " (SELECT id FROM todos ORDER BY id DESC LIMIT ?)",
-                (MAX_TODOS,),
+                "DELETE FROM todos WHERE id IN"
+                " (SELECT id FROM todos WHERE id != ? ORDER BY RANDOM()"
+                "  LIMIT max(0, (SELECT count(*) FROM todos) - ?))",
+                (cur.lastrowid, MAX_TODOS),
             )
             db.commit()
         return redirect(url_for("index"))
