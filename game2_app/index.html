@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>クマクマ大冒険</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <canvas id="game" width="800" height="480"></canvas>
+    <p class="help pc">← → / A D：移動　スペース / ↑ / W：ジャンプ　Z / X / J：パンチ　P：一時停止　M：音のオン/オフ</p>
+    <!-- スマホ用のボタン（タッチ操作の端末でだけ表示する） -->
+    <div class="controls">
+      <div class="pad">
+        <button type="button" data-btn="left" aria-label="左へ移動">◀</button>
+        <button type="button" data-btn="right" aria-label="右へ移動">▶</button>
+      </div>
+      <div class="pad">
+        <button type="button" data-btn="punch" class="punch" aria-label="パンチ">パンチ</button>
+        <button type="button" data-btn="jump" class="jump" aria-label="ジャンプ">ジャンプ</button>
+      </div>
+    </div>
+  </main>
+  <script src="sound.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

@@ -1,10 +1,10 @@
-# game_app/ を GitHub Pages に公開する
+# game_app/ をサイトのトップに、game2_app/ を /game2/ に置いて GitHub Pages に公開する
 name: GitHub Pages にゲームを公開
 
 on:
   push:
     branches: [main]
-    paths: ["game_app/**", ".github/workflows/pages.yml"]
+    paths: ["game_app/**", "game2_app/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -25,8 +25,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      - name: 公開するファイルをまとめる
+        run: |
+          mkdir -p _site/game2
+          cp -R game_app/. _site/
+          cp -R game2_app/. _site/game2/
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: game_app
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4
