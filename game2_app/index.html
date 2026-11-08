@@ -9,16 +9,19 @@
 <body>
   <main>
     <canvas id="game" width="800" height="480"></canvas>
-    <p class="help pc">← → / A D：移動　スペース / ↑ / W：ジャンプ　Z / X / J：パンチ　P：一時停止　M：音のオン/オフ</p>
+    <p class="help pc">← → / A D：移動　スペース / ↑ / W：ジャンプ　Z / X / J：パンチ　C / K：レーザー（10 秒に 1 回）　P：一時停止　M：音のオン/オフ</p>
     <!-- スマホ用のボタン（タッチ操作の端末でだけ表示する） -->
     <div class="controls">
       <div class="pad">
         <button type="button" data-btn="left" aria-label="左へ移動">◀</button>
         <button type="button" data-btn="right" aria-label="右へ移動">▶</button>
       </div>
-      <div class="pad">
-        <button type="button" data-btn="punch" class="punch" aria-label="パンチ">パンチ</button>
-        <button type="button" data-btn="jump" class="jump" aria-label="ジャンプ">ジャンプ</button>
+      <div class="pad actions">
+        <button type="button" data-btn="laser" class="laser" aria-label="レーザー">レーザー</button>
+        <div class="pad">
+          <button type="button" data-btn="punch" class="punch" aria-label="パンチ">パンチ</button>
+          <button type="button" data-btn="jump" class="jump" aria-label="ジャンプ">ジャンプ</button>
+        </div>
       </div>
     </div>
   </main>

@@ -189,6 +189,13 @@ const Sound = (() => {
       noise(now, 0.2, { vol: 0.5, filter: 2500 });
       tone(300, now, 0.15, { type: "square", vol: 0.12, toFreq: 150 });
     }),
+    laserCharge: sfx((now) => tone(300, now, 0.25, { type: "sine", vol: 0.25, toFreq: 1400 })),
+    laserFire: sfx((now) => {
+      tone(1400, now, 0.55, { type: "sawtooth", vol: 0.12, toFreq: 250 });
+      tone(90, now, 0.5, { type: "sine", vol: 0.5, toFreq: 35 });
+      noise(now, 0.5, { vol: 0.35, filter: 6000 });
+    }),
+    laserReady: sfx((now) => arpeggio(now, [84, 91], 0.08, 0.15, { type: "triangle", vol: 0.3 })),
     throwBall: sfx((now) => tone(600, now, 0.12, { type: "triangle", vol: 0.2, toFreq: 300 })),
     bossDown: sfx((now) => {
       for (let i = 0; i < 4; i++) noise(now + i * 0.15, 0.5, { vol: 0.5, filter: 1200 });

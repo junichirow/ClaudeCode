@@ -9,7 +9,7 @@ Python の小さな学習・実験用リポジトリ。アプリごとにサブ�
 - `now_app/now.py` — 現在の日本時間を `YYYY年MM月DD日 HH時MM分SS秒` 形式で表示する。標準ライブラリのみ
 - `todo_app/` — Flask + SQLite の TODO リスト Web アプリ
 - `game_app/` — HTML/CSS/JS（Canvas）だけのシューティングゲーム。ビルド不要
-- `game2_app/` — 同じく Canvas だけの横スクロールアクション（クマがパンチ・ジャンプでシロクマを倒す）。PC はキーボード、スマホは画面下のボタンで操作
+- `game2_app/` — 同じく Canvas だけの横スクロールアクション（クマがパンチ・ジャンプ・レーザーでシロクマを倒す）。PC はキーボード、スマホは画面下のボタンで操作
 - 2つのゲームは `.github/workflows/pages.yml` で `main` へのプッシュ時に GitHub Pages へ公開（`game_app` がサイトのトップ、`game2_app` が `/game2/`）
 
 ## 環境

@@ -15,10 +15,14 @@ const MAX_FALL = 12;
 const RUN_SPEED = 4.2;
 const RUN_ACCEL = 0.6;
 const JUMP_SPEED = -13; // 3 マス上の足場まで届く
-const MAX_HP = 3;
+const MAX_HP = 5;
 const START_LIVES = 3;
 const PUNCH_FRAMES = 16;
 const PUNCH_COOLDOWN = 22;
+const LASER_CHARGE = 14; // レーザーをためる時間（フレーム）
+const LASER_BEAM = 32; // ビームが出ている時間
+const LASER_COOLDOWN = 600; // 次に撃てるまで 10 秒
+const LASER_BOSS_DAMAGE = 4; // ボスへのダメージ（パンチ 4 回分）
 const BOSS_HP = 16;
 
 const LEVEL_COLS = 200;
@@ -33,11 +37,13 @@ const KEY_LEFT = ["arrowleft", "a"];
 const KEY_RIGHT = ["arrowright", "d"];
 const KEY_JUMP = [" ", "arrowup", "w"];
 const KEY_PUNCH = ["z", "x", "j"];
+const KEY_LASER = ["c", "k"];
 const keys = new Set();
-const touchHeld = { left: false, right: false, jump: false, punch: false };
-// ジャンプ・パンチは押した瞬間を数フレームおぼえておき、着地の少し前に押しても出るようにする
+const touchHeld = { left: false, right: false, jump: false, punch: false, laser: false };
+// ジャンプ・パンチ・レーザーは押した瞬間を数フレームおぼえておき、着地の少し前に押しても出るようにする
 let jumpBuffer = 0;
 let punchBuffer = 0;
+let laserBuffer = 0;
 
 const held = (list) => list.some((k) => keys.has(k));
 const holdLeft = () => held(KEY_LEFT) || touchHeld.left;
@@ -51,6 +57,7 @@ window.addEventListener("keydown", (e) => {
   if (!keys.has(k)) {
     if (KEY_JUMP.includes(k)) jumpBuffer = 8;
     if (KEY_PUNCH.includes(k)) punchBuffer = 8;
+    if (KEY_LASER.includes(k)) laserBuffer = 8;
   }
   keys.add(k);
   if (k === "enter" || k === " ") onAction();
@@ -82,7 +89,8 @@ document.querySelectorAll("[data-btn]").forEach((btn) => {
     btn.classList.add("on");
     if (name === "jump") jumpBuffer = 8;
     if (name === "punch") punchBuffer = 8;
-    if (name === "jump" || name === "punch") onAction();
+    if (name === "laser") laserBuffer = 8;
+    if (name !== "left" && name !== "right") onAction();
   });
   btn.addEventListener("pointerup", release);
   btn.addEventListener("pointercancel", release);
@@ -316,6 +324,7 @@ function respawn() {
   player = {
     x: checkpointX, y: GROUND_Y - 36, w: 26, h: 36, vx: 0, vy: 0,
     facing: 1, onGround: false, coyote: 0, punch: 0, punchCool: 0,
+    laser: 0, laserCool: 0, laserHitBoss: false,
     invincible: 60, hurtTimer: 0, jumpCut: true, walk: 0, prevBottom: GROUND_Y,
   };
   enemies = level.enemySpawns.map(makeEnemy);
@@ -327,6 +336,7 @@ function respawn() {
   camX = clampCam(player.x - W / 3);
   jumpBuffer = 0;
   punchBuffer = 0;
+  laserBuffer = 0;
   Sound.playMusic("forest");
 }
 
@@ -408,6 +418,7 @@ function update() {
   if (warningTimer > 0) warningTimer--;
   if (jumpBuffer > 0) jumpBuffer--;
   if (punchBuffer > 0) punchBuffer--;
+  if (laserBuffer > 0) laserBuffer--;
 }
 
 function updatePlayer() {
@@ -420,6 +431,8 @@ function updatePlayer() {
   const right = holdRight();
   if (p.hurtTimer > 0) {
     p.hurtTimer--; // ダメージで吹き飛ばされている間は操作できない
+  } else if (p.laser > 0) {
+    p.vx = 0; // レーザー中は動けない
   } else if (left !== right) {
     const dir = right ? 1 : -1;
     p.vx = clamp(p.vx + dir * RUN_ACCEL, -RUN_SPEED, RUN_SPEED);
@@ -431,7 +444,7 @@ function updatePlayer() {
 
   // ジャンプ（足場から落ちた直後も少しだけ跳べる。ボタンを早く離すと低いジャンプ）
   p.coyote = p.onGround ? 6 : Math.max(0, p.coyote - 1);
-  if (jumpBuffer > 0 && p.coyote > 0 && p.hurtTimer === 0) {
+  if (jumpBuffer > 0 && p.coyote > 0 && p.hurtTimer === 0 && p.laser === 0) {
     p.vy = JUMP_SPEED;
     p.coyote = 0;
     p.jumpCut = false;
@@ -448,14 +461,37 @@ function updatePlayer() {
   // パンチ
   if (p.punchCool > 0) p.punchCool--;
   if (p.punch > 0) p.punch--;
-  if (punchBuffer > 0 && p.punchCool === 0) {
+  if (punchBuffer > 0 && p.punchCool === 0 && p.laser === 0) {
     p.punch = PUNCH_FRAMES;
     p.punchCool = PUNCH_COOLDOWN;
     punchBuffer = 0;
     Sound.punch();
   }
 
-  moveEntity(p);
+  // レーザー：ためてから発射。撃っている間は無敵で、空中でもその場に止まる
+  if (p.laserCool > 0 && --p.laserCool === 0) {
+    popups.push({ x: p.x + p.w / 2, y: p.y - 16, text: "レーザー OK!", life: 50 });
+    Sound.laserReady();
+  }
+  if (laserBuffer > 0 && p.laserCool === 0 && p.laser === 0 && p.hurtTimer === 0) {
+    p.laser = LASER_CHARGE + LASER_BEAM;
+    p.laserCool = LASER_COOLDOWN;
+    p.laserHitBoss = false;
+    p.punch = 0;
+    laserBuffer = 0;
+    Sound.laserCharge();
+  }
+  if (p.laser > 0) {
+    p.laser--;
+    if (p.laser === LASER_BEAM) {
+      shake = 8;
+      Sound.laserFire();
+    }
+    p.vx = 0;
+    p.vy = 0;
+  } else {
+    moveEntity(p);
+  }
   if (bossPhase !== "none") p.x = clamp(p.x, ARENA_X, ARENA_X + W - T - p.w); // ボス戦中は部屋から出られない
   if (p.onGround && !wasOnGround) dust(p.x + p.w / 2, p.y + p.h);
   if (p.invincible > 0) p.invincible--;
@@ -472,12 +508,22 @@ function punchHitbox() {
   return { x: p.facing > 0 ? p.x + p.w - 6 : p.x - w + 6, y: p.y + 6, w, h: 24 };
 }
 
+// レーザーが当たる範囲（クマの前から画面の端まで）。ためている間は null
+function laserHitbox() {
+  const p = player;
+  if (p.laser === 0 || p.laser > LASER_BEAM) return null;
+  const from = p.facing > 0 ? p.x + p.w : camX - 40;
+  const to = p.facing > 0 ? camX + W + 40 : p.x;
+  return { x: from, y: p.y + 4, w: Math.max(0, to - from), h: 28 };
+}
+
 // 上から落ちてきて踏んだかどうか
 const isStomp = (p, target) => p.vy > 0 && p.prevBottom <= target.y + 14;
 
 function updateEnemies() {
   const p = player;
   const fist = punchHitbox();
+  const beam = laserHitbox();
   for (const e of enemies) {
     if (!e.active) {
       if (e.x > camX + W + 60) continue; // 画面に近づくまで動かない
@@ -507,7 +553,7 @@ function updateEnemies() {
     }
 
     if (state !== "playing") continue;
-    if (fist && overlap(fist, e)) {
+    if ((fist && overlap(fist, e)) || (beam && overlap(beam, e))) {
       defeatEnemy(e, p.facing);
     } else if (overlap(p, e)) {
       if (isStomp(p, e)) {
@@ -574,7 +620,7 @@ function updateItems() {
 
 function hurt(fromX) {
   const p = player;
-  if (p.invincible > 0 || state !== "playing") return;
+  if (p.invincible > 0 || p.laser > 0 || state !== "playing") return;
   hp--;
   shake = 12;
   if (hp <= 0) {
@@ -742,7 +788,14 @@ function updateBoss() {
 
   if (state !== "playing") return;
   const fist = punchHitbox();
+  const beam = laserHitbox();
   const body = { x: b.x + 8, y: b.y + 10, w: b.w - 16, h: b.h - 10 };
+  // レーザーは 1 回の発射につき 1 度だけ、ボスの無敵時間に関係なく当たる
+  if (beam && !p.laserHitBoss && overlap(beam, body)) {
+    p.laserHitBoss = true;
+    damageBoss(LASER_BOSS_DAMAGE);
+    return;
+  }
   if (fist && b.invincible === 0 && overlap(fist, body)) damageBoss();
   else if (overlap(p, body)) {
     if (isStomp(p, body)) {
@@ -774,13 +827,13 @@ function throwSnowball(flight) {
   Sound.throwBall();
 }
 
-function damageBoss() {
+function damageBoss(amount = 1) {
   const b = boss;
-  b.hp--;
+  b.hp = Math.max(0, b.hp - amount);
   b.invincible = 36;
-  shake = 6;
-  burst(b.x + b.w / 2, b.y + b.h / 2, "#ffffff", 14, 5);
-  addScore(100, b.x + b.w / 2, b.y);
+  shake = 6 + amount * 2;
+  burst(b.x + b.w / 2, b.y + b.h / 2, "#ffffff", 14 * amount, 5);
+  addScore(100 * amount, b.x + b.w / 2, b.y);
   Sound.bossHit();
   if (b.hp <= 0) {
     bossPhase = "done";
@@ -808,13 +861,14 @@ function stageClear() {
 function updateProjectiles() {
   const p = player;
   const fist = punchHitbox();
+  const beam = laserHitbox();
   for (const s of snowballs) {
     s.vy += s.g;
     s.x += s.vx;
     s.y += s.vy;
     const box = { x: s.x - s.r, y: s.y - s.r, w: s.r * 2, h: s.r * 2 };
-    if (fist && overlap(fist, box)) {
-      // 雪玉はパンチで打ち返せる
+    if ((fist && overlap(fist, box)) || (beam && overlap(beam, box))) {
+      // 雪玉はパンチやレーザーで壊せる
       s.gone = true;
       burst(s.x, s.y, "#ffffff", 10, 3);
       addScore(50, s.x, s.y);
@@ -833,7 +887,13 @@ function updateProjectiles() {
   for (const w of waves) {
     w.x += w.dir * w.speed;
     if (frame % 3 === 0) dust(w.x, w.y);
-    if (overlap(p, { x: w.x - 10, y: w.y - 26, w: 20, h: 26 })) hurt(w.x - w.dir * 20);
+    const box = { x: w.x - 10, y: w.y - 26, w: 20, h: 26 };
+    if (beam && overlap(beam, box)) {
+      w.gone = true; // 衝撃波もレーザーで消せる
+      burst(w.x, w.y - 10, "#ffffff", 8, 3);
+      continue;
+    }
+    if (overlap(p, box)) hurt(w.x - w.dir * 20);
     if (w.x < ARENA_X || w.x > ARENA_X + W - T) w.gone = true;
   }
   waves = waves.filter((w) => !w.gone);
@@ -932,7 +992,10 @@ function draw() {
     circle(s.x, s.y, s.r, "#ffffff", "#9fb6cc");
     circle(s.x - 3, s.y - 3, 3, "#e8f2ff");
   }
-  if (state !== "title") drawPlayer();
+  if (state !== "title") {
+    drawPlayer();
+    drawLaser();
+  }
   for (const q of particles) {
     ctx.globalAlpha = Math.max(0, q.life / q.max);
     ctx.fillStyle = q.color;
@@ -1114,7 +1177,7 @@ function drawWaves() {
 }
 
 // 主人公：茶色のクマ（赤いボクシンググローブでパンチ）。原点は足元の中心、右向きで描く
-function drawKuma({ walk = 0, air = false, punch = 0, dizzy = false } = {}) {
+function drawKuma({ walk = 0, air = false, punch = 0, laser = false, dizzy = false } = {}) {
   const fur = "#9a6234";
   const dark = "#7a4a26";
   const light = "#f1d9b5";
@@ -1149,8 +1212,12 @@ function drawKuma({ walk = 0, air = false, punch = 0, dizzy = false } = {}) {
   }
   circle(-2, headY + 4, 2.4, "rgba(240, 120, 120, 0.55)"); // ほっぺ
 
-  // 手前の腕。パンチ中は前に突き出す
-  if (punch > 0) {
+  // 手前の腕。パンチ中は前に突き出す。レーザー中は両手を前にそろえる
+  if (laser) {
+    circle(17, -13, 5.5, "#b02a35");
+    line(5, -18, 16, -19, fur, 8);
+    circle(20, -19, 6.5, "#e63946");
+  } else if (punch > 0) {
     const t = PUNCH_FRAMES - punch;
     const reach = t < 3 ? t * 6 : t < 10 ? 18 : Math.max(0, 18 - (t - 10) * 3);
     line(5, -18, 10 + reach, -19, fur, 8);
@@ -1172,8 +1239,58 @@ function drawPlayer() {
   ctx.save();
   ctx.translate(p.x + p.w / 2, p.y + p.h);
   ctx.scale(p.facing, 1);
-  drawKuma({ walk: p.walk, air: !p.onGround, punch: p.punch, dizzy: state === "miss" || state === "gameover" });
+  drawKuma({
+    walk: p.walk, air: !p.onGround, punch: p.punch, laser: p.laser > 0,
+    dizzy: state === "miss" || state === "gameover",
+  });
   ctx.restore();
+}
+
+// レーザー：ためている間は手元に光が集まり、そのあと画面の端までビームが伸びる
+function drawLaser() {
+  const p = player;
+  if (p.laser === 0) return;
+  const hx = p.x + p.w / 2 + p.facing * 24; // グローブの位置
+  const hy = p.y + 17;
+  if (p.laser > LASER_BEAM) {
+    const k = 1 - (p.laser - LASER_BEAM) / LASER_CHARGE; // 0 → 1
+    circle(hx, hy, 4 + k * 10, "rgba(255, 240, 120, 0.5)");
+    circle(hx, hy, 2 + k * 5, "#fffbe0");
+    for (let i = 0; i < 6; i++) {
+      const a = frame * 0.3 + (i * Math.PI) / 3;
+      const r = 30 * (1 - k) + 6;
+      circle(hx + Math.cos(a) * r, hy + Math.sin(a) * r, 2.5, "#fff6c2");
+    }
+    return;
+  }
+  const box = laserHitbox();
+  const end = p.facing > 0 ? box.x + box.w : box.x;
+  const x0 = Math.min(hx, end);
+  const len = Math.abs(end - hx);
+  // 出始めは太く、終わりぎわは細くなる
+  const k = p.laser / LASER_BEAM;
+  const h = 30 * Math.min(1, k * 3) * (0.85 + Math.random() * 0.15);
+  ctx.fillStyle = "rgba(255, 120, 200, 0.35)";
+  ctx.fillRect(x0, hy - h / 2 - 7, len, h + 14);
+  ctx.fillStyle = "rgba(255, 225, 80, 0.9)";
+  ctx.fillRect(x0, hy - h / 2, len, h);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x0, hy - h / 6, len, h / 3);
+  circle(hx, hy, h * 0.45, "#fff6c2");
+  for (let i = 0; i < 6; i++) circle(x0 + Math.random() * len, hy + rand(-h, h) / 2, rand(1.5, 3.5), "#ffffff");
+}
+
+// スマホのレーザーボタン：撃てるまでの残り秒数を表示する
+const laserBtn = document.querySelector('[data-btn="laser"]');
+let laserBtnLabel = "";
+function updateLaserButton() {
+  if (!laserBtn) return;
+  const cool = state === "title" ? 0 : player.laserCool;
+  const label = cool > 0 ? `あと ${Math.ceil(cool / 60)} 秒` : "レーザー";
+  if (label === laserBtnLabel) return;
+  laserBtnLabel = label;
+  laserBtn.textContent = label;
+  laserBtn.classList.toggle("cooling", cool > 0);
 }
 
 // 雑魚：小さなシロクマ（青いマフラー）。原点は足元の中心、右向きで描く
@@ -1325,6 +1442,21 @@ function drawHud() {
     }
     drawMiniBear(28, 62);
     text(`× ${Math.max(0, lives)}`, 46, 63, 18, "#fff", "left");
+
+    // レーザーのたまり具合
+    const ready = player.laserCool === 0;
+    const gx = 84;
+    const gy = 86;
+    const gw = 96;
+    text("レーザー", 14, gy + 6, 14, "#fff", "left");
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
+    ctx.fillRect(gx, gy, gw, 11);
+    ctx.fillStyle = ready ? (Math.floor(frame / 15) % 2 ? "#fff6c2" : "#ffd166") : "#7fd3ff";
+    ctx.fillRect(gx, gy, gw * (1 - player.laserCool / LASER_COOLDOWN), 11);
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(gx, gy, gw, 11);
+    if (ready) text("OK!", gx + gw + 8, gy + 6, 14, "#ffd166", "left");
     text(`スコア ${score}`, W - 12, 22, 20, "#fff", "right");
 
     if (boss && bossPhase === "fight") {
@@ -1383,7 +1515,7 @@ function drawOverlay() {
     text("クマクマ大冒険", W / 2, 140, 64, "#ffd166");
     if (blink) text(`${startKey} でスタート`, W / 2, 236, 22, "#ffffff");
     text(
-      isTouchDevice ? "◀ ▶：移動　ジャンプ　パンチ" : "← →：移動　スペース：ジャンプ　Z：パンチ",
+      isTouchDevice ? "◀ ▶：移動　ジャンプ　パンチ　レーザー" : "← →：移動　スペース：ジャンプ　Z：パンチ　C：レーザー",
       W / 2, 274, 16, "#e8ffe0",
     );
     text(`ハイスコア ${highScore}`, W / 2, 304, 16, "#e8ffe0");
@@ -1437,6 +1569,7 @@ function loop(now) {
     acc -= STEP;
   }
   draw();
+  updateLaserButton();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
