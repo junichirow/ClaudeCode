@@ -78,7 +78,9 @@ canvas {
 
   .controls button.punch,
   .controls button.jump {
+    padding: 0;
     font-size: 15px;
+    white-space: nowrap;
   }
 
   .controls button.punch {
