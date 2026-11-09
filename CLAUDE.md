@@ -11,6 +11,7 @@ Python の小さな学習・実験用リポジトリ。アプリごとにサブ�
 - `game_app/` — HTML/CSS/JS（Canvas）だけのシューティングゲーム。ビルド不要
 - `game2_app/` — 同じく Canvas だけの横スクロールアクション（クマがパンチ・ジャンプ・レーザーで戦う全 2 ステージ。1 面は森でシロクマ、2 面は竹林でパンダがボス）。PC はキーボード、スマホは画面下のボタンで操作
 - 2つのゲームは `.github/workflows/pages.yml` で `main` へのプッシュ時に GitHub Pages へ公開（`game_app` がサイトのトップ、`game2_app` が `/game2/`）
+  - 公開アドレス：https://junichirow.github.io/ClaudeCode/ （シューティング）、https://junichirow.github.io/ClaudeCode/game2/ （クマクマ大冒険）
 
 ## 環境
 

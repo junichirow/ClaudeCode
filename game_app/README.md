@@ -28,6 +28,12 @@
 cd game_app && python -m http.server 8000   # http://localhost:8000
 ```
 
+## 公開
+
+`main` にプッシュすると、GitHub Actions（`.github/workflows/pages.yml`）で GitHub Pages のトップに公開されます。
+
+公開アドレス：https://junichirow.github.io/ClaudeCode/
+
 ## ファイル構成
 
 - `index.html` — ページ本体
