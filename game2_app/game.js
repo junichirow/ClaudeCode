@@ -155,6 +155,7 @@ function onAction() {
   // ゲームオーバー・クリア直後は誤操作ですぐ始まらないよう少し待つ
   else if ((state === "gameover" || state === "clear") && performance.now() - stateChangedAt > 1500) {
     if (state === "clear" && stage < LAST_STAGE) nextStage();
+    else if (state === "gameover") startGame(stage); // コンティニュー：やられたステージの最初から
     else startGame();
   }
 }
@@ -400,8 +401,9 @@ function setupWorld() {
   respawn();
 }
 
-function startGame() {
-  stage = START_STAGE;
+// from：始めるステージ。ゲームオーバー後のコンティニューでは、やられたステージを渡す
+function startGame(from = START_STAGE) {
+  stage = from;
   score = 0;
   lives = START_LIVES;
   beginStage();
@@ -1927,7 +1929,7 @@ function drawOverlay() {
     text("ゲームオーバー", W / 2, 160, 48, "#ff6b6b");
     text(`スコア ${score}`, W / 2, 230, 24);
     text(`ハイスコア ${highScore}`, W / 2, 266, 18, "#e8ffe0");
-    if (blink && performance.now() - stateChangedAt > 1500) text(`${startKey} でもう一度`, W / 2, 330, 20);
+    if (blink && performance.now() - stateChangedAt > 1500) text(`${startKey} でステージ ${stage} からつづける`, W / 2, 330, 20);
   }
 
   if (state === "clear") {
