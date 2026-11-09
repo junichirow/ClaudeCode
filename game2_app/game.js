@@ -24,6 +24,7 @@ const LASER_BEAM = 32; // ビームが出ている時間
 const LASER_COOLDOWN = 600; // 次に撃てるまで 10 秒
 const LASER_BOSS_DAMAGE = 4; // ボスへのダメージ（パンチ 4 回分）
 const BOSS_HP = 16;
+const BOSS_STUN = 180; // 踏まれたボスが動けなくなる時間（3 秒）
 
 const LEVEL_COLS = 200;
 const LEVEL_W = LEVEL_COLS * T;
@@ -685,7 +686,7 @@ function startBoss() {
   boss = {
     x: ARENA_X + W - 200, y: -220, w: 92, h: 108, vx: 0, vy: 0,
     hp: BOSS_HP, state: "enter", t: 0, facing: -1, invincible: 0,
-    onGround: false, last: "", angryShown: false,
+    onGround: false, last: "", angryShown: false, stun: 0,
   };
 }
 
@@ -731,7 +732,12 @@ function updateBoss() {
   const toPlayer = p.x + p.w / 2 < b.x + b.w / 2 ? -1 : 1;
   const wasOnGround = b.onGround;
 
-  switch (b.state) {
+  // 踏まれて目を回している間は動けない（空中なら落ちるだけ）
+  if (b.stun > 0) {
+    b.stun--;
+    b.vx = 0;
+    b.t = 0;
+  } else switch (b.state) {
     case "enter":
       b.vx = 0;
       break;
@@ -778,7 +784,7 @@ function updateBoss() {
     shake = 18;
     Sound.stomp(true);
     for (let i = 0; i < 3; i++) dust(b.x + rand(0, b.w), b.y + b.h);
-    if (b.state === "air") {
+    if (b.state === "air" && b.stun === 0) {
       const speed = angry ? 6.5 : 5;
       waves.push({ x: b.x - 4, y: b.y + b.h, dir: -1, speed });
       waves.push({ x: b.x + b.w + 4, y: b.y + b.h, dir: 1, speed });
@@ -800,6 +806,7 @@ function updateBoss() {
   else if (overlap(p, body)) {
     if (isStomp(p, body)) {
       if (b.invincible === 0) damageBoss();
+      if (b.stun === 0 && bossPhase === "fight") stunBoss(); // 目を回している間に踏んでも延長しない
       p.vy = -11;
       p.vx = (p.x + p.w / 2 < b.x + b.w / 2 ? -1 : 1) * 4;
       p.hurtTimer = 10;
@@ -808,6 +815,13 @@ function updateBoss() {
       hurt(b.x + b.w / 2);
     }
   }
+}
+
+function stunBoss() {
+  const b = boss;
+  b.stun = BOSS_STUN;
+  if (b.onGround) setBossState("idle");
+  popups.push({ x: b.x + b.w / 2, y: b.y - 20, text: "ピヨピヨ…", life: 60 });
 }
 
 // 雪玉を山なりに投げる。flight フレームでプレイヤーのいる場所に届く
@@ -1419,6 +1433,32 @@ function drawBoss(b) {
   ctx.scale(b.facing, 1);
   drawBigShirokuma({ state: b.state, t: b.t, angry: bossAngry(), down: b.state === "down" });
   ctx.restore();
+  if (b.stun > 0 && b.state !== "down") drawDizzyStars(b.x + b.w / 2, b.y - 8, b.stun);
+}
+
+// 目を回しているときに頭の上をまわる星
+function drawDizzyStars(cx, cy, t) {
+  for (let i = 0; i < 3; i++) {
+    const a = t * 0.12 + (i * Math.PI * 2) / 3;
+    const x = cx + Math.cos(a) * 34;
+    const y = cy + Math.sin(a) * 9;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(t * 0.2);
+    ctx.beginPath();
+    for (let k = 0; k < 10; k++) {
+      const r = k % 2 ? 4 : 9;
+      const ang = (k * Math.PI) / 5 - Math.PI / 2;
+      ctx.lineTo(Math.cos(ang) * r, Math.sin(ang) * r);
+    }
+    ctx.closePath();
+    ctx.fillStyle = "#ffd60a";
+    ctx.fill();
+    ctx.strokeStyle = "#b08900";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 function drawMiniBear(x, y) {
