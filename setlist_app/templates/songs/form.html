@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}{{ "曲の編集" if song else "曲の登録" }} - {% endblock %}
+{% block content %}
+<h1>{{ "曲の編集" if song else "曲の登録" }}</h1>
+<form method="post" class="form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>曲名（必須）
+    <input name="title" value="{{ values.title }}" maxlength="200" required>
+  </label>
+  <div class="row">
+    <label>キー
+      <input name="key" value="{{ values.key }}" maxlength="20" placeholder="例：Em">
+    </label>
+    <label>チューニング
+      <input name="tuning" value="{{ values.tuning }}" maxlength="50" placeholder="例：Drop D">
+    </label>
+  </div>
+  <label>演奏時間（分:秒）
+    <input name="duration" value="{{ values.duration }}" placeholder="例：4:35"
+           inputmode="numeric" pattern="\d{1,3}[:：][0-5]\d">
+  </label>
+  <label>メモ
+    <textarea name="memo" rows="4">{{ values.memo }}</textarea>
+  </label>
+  <div class="form-actions">
+    <button class="button primary" type="submit">保存</button>
+    <a class="button" href="{{ url_for('songs.index') }}">キャンセル</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}曲 - {% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>曲</h1>
+  <a class="button primary" href="{{ url_for('songs.new') }}">＋ 曲を登録</a>
+</div>
+
+{% if songs %}
+  <ul class="cards">
+    {% for song in songs %}
+      <li class="card">
+        <div class="card-main">
+          <span class="song-title">{{ song.title }}</span>
+          <span class="meta">
+            {% if song.key %}<span class="tag">{{ song.key }}</span>{% endif %}
+            {% if song.tuning %}<span class="tag">{{ song.tuning }}</span>{% endif %}
+            {% if song.duration_seconds is not none %}<span class="time">{{ song.duration_seconds|duration }}</span>{% endif %}
+          </span>
+          {% if song.memo %}<p class="memo">{{ song.memo }}</p>{% endif %}
+        </div>
+        <div class="actions">
+          <a class="button" href="{{ url_for('songs.edit', song_id=song.id) }}">編集</a>
+          <form method="post" action="{{ url_for('songs.delete', song_id=song.id) }}"
+                onsubmit="return confirm('この曲を削除しますか？セットリストからも消えます')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button danger" type="submit">削除</button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="empty">まだ曲がありません。「＋ 曲を登録」から追加しましょう。</p>
+{% endif %}
+{% endblock %}

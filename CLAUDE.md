@@ -8,6 +8,7 @@ Python の小さな学習・実験用リポジトリ。アプリごとにサブ�
 
 - `now_app/now.py` — 現在の日本時間を `YYYY年MM月DD日 HH時MM分SS秒` 形式で表示する。標準ライブラリのみ
 - `todo_app/` — Flask + SQLite の TODO リスト Web アプリ
+- `setlist_app/` — バンド向けセットリスト管理 Web アプリ（Flask-Login でユーザーごとにデータを分離。ローカルは SQLite、本番は Render + Supabase PostgreSQL）
 - `game_app/` — HTML/CSS/JS（Canvas）だけのシューティングゲーム。ビルド不要
 - `game2_app/` — 同じく Canvas だけの横スクロールアクション（クマがパンチ・ジャンプ・レーザーで戦う全 2 ステージ。1 面は森でシロクマ、2 面は竹林でパンダがボス）。PC はキーボード、スマホは画面下のボタンで操作
 - 2つのゲームは `.github/workflows/pages.yml` で `main` へのプッシュ時に GitHub Pages へ公開（`game_app` がサイトのトップ、`game2_app` が `/game2/`）
@@ -29,7 +30,25 @@ pip install -r todo_app/requirements.txt  # TODOアプリの依存をインス�
 cd todo_app && python app.py              # http://127.0.0.1:5001 で起動（debug モード。5000 は macOS の AirPlay と衝突するため避ける）
 cd todo_app && python -m unittest -v      # テスト（標準の unittest）
 cd todo_app && python -m unittest test_app.TodoAppTest.test_削除  # 単一テスト
+
+pip install -r setlist_app/requirements.txt
+cp setlist_app/.env.example setlist_app/.env  # SECRET_KEY を入れる
+cd setlist_app && python app.py           # http://127.0.0.1:5002 で起動
+cd setlist_app && python -m unittest -v   # テスト
 ```
+
+## setlist_app の構成
+
+- `app.py` の `create_app(test_config=None)` がアプリファクトリ。`.env` を python-dotenv で読み、`SECRET_KEY` が無ければ起動時に例外
+- `DATABASE_URL` が無ければ `setlist_app/setlist.db`（SQLite、`.gitignore` 済み）。あれば `normalize_database_url()` で `postgres://` / `postgresql://` を `postgresql+psycopg://`（psycopg 3）に変換
+- 本番の Supabase は **Session pooler（ポート 5432）** の接続文字列を使う。直接接続は IPv6 専用で Render から届かず、Transaction pooler（6543）は psycopg のプリペアドステートメントと相性が悪い
+- テーブルは `db.create_all()` で作成（マイグレーションの仕組みは無い。列を変えるときは本番 DB を手で直す必要がある）
+- 機能ごとに Blueprint：`auth.py` / `songs.py` / `setlists.py` / `export.py`。モデルは `models.py`、演奏時間の変換は `durations.py`（DB には秒で保存）
+- ユーザーごとの分離：取得はすべて `user_id=current_user.id` で絞り、他人の ID は 404
+- CSRF は Flask-WTF の `CSRFProtect`。フォームには `{{ csrf_token() }}` の hidden を入れる（テストでは `WTF_CSRF_ENABLED=False`）
+- 曲順は `SetlistItem.position`。並べ替えは ↑↓ ボタン（POST）で隣と入れ替え、削除時は `Setlist.renumber()` で振り直す
+- Render 上（環境変数 `RENDER` あり）では `ProxyFix` で HTTPS を判別し、クッキーを Secure にする。`after_request` で `X-Frame-Options` などのセキュリティヘッダーを付け、`MAX_CONTENT_LENGTH` は 1MB
+- Render の Web サービスは `render.yaml` ではなくダッシュボードで手動作成（Root Directory `setlist_app`、Python は `.python-version` で 3.13）
 
 ## todo_app の構成
 

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ setlist.title }} - {% endblock %}
+{% block content %}
+<div class="setlist-head">
+  <h1>{{ setlist.title }}</h1>
+  <p class="meta">
+    {% if setlist.date %}<span>{{ setlist.date.strftime('%Y/%m/%d') }}</span>{% endif %}
+    {% if setlist.venue %}<span>＠{{ setlist.venue }}</span>{% endif %}
+  </p>
+  <p class="total">
+    合計 <strong>{{ setlist.total_seconds|duration }}</strong>
+    <span class="sub">（{{ setlist.items|length }} 曲）</span>
+  </p>
+  {% if setlist.missing_duration_count %}
+    <p class="sub">※ 演奏時間が未入力の曲が {{ setlist.missing_duration_count }} 曲あり、合計に含まれていません</p>
+  {% endif %}
+</div>
+
+{% if setlist.items %}
+  <ol class="live-list">
+    {% for item in setlist.items %}
+      <li>
+        <span class="number">{{ loop.index }}</span>
+        <div class="live-body">
+          <span class="live-title">{{ item.song.title }}</span>
+          <span class="meta">
+            {% if item.song.key %}<span class="tag">{{ item.song.key }}</span>{% endif %}
+            {% if item.song.tuning %}<span class="tag">{{ item.song.tuning }}</span>{% endif %}
+            {% if item.song.duration_seconds is not none %}<span class="time">{{ item.song.duration_seconds|duration }}</span>{% endif %}
+          </span>
+          {% if item.song.memo %}<p class="memo">{{ item.song.memo }}</p>{% endif %}
+        </div>
+      </li>
+    {% endfor %}
+  </ol>
+{% else %}
+  <p class="empty">まだ曲が入っていません。</p>
+{% endif %}
+
+<div class="form-actions">
+  <a class="button primary" href="{{ url_for('setlists.items', setlist_id=setlist.id) }}">曲の追加・並べ替え</a>
+  <a class="button" href="{{ url_for('setlists.edit', setlist_id=setlist.id) }}">タイトル・日付・会場の編集</a>
+</div>
+{% endblock %}

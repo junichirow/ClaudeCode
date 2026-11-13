@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ "セットリストの編集" if setlist else "セットリストの作成" }} - {% endblock %}
+{% block content %}
+<h1>{{ "セットリストの編集" if setlist else "セットリストの作成" }}</h1>
+<form method="post" class="form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>タイトル（必須）
+    <input name="title" value="{{ values.title }}" maxlength="200" required>
+  </label>
+  <label>日付
+    <input name="date" type="date" value="{{ values.date }}">
+  </label>
+  <label>会場
+    <input name="venue" value="{{ values.venue }}" maxlength="200">
+  </label>
+  <div class="form-actions">
+    <button class="button primary" type="submit">保存</button>
+    <a class="button" href="{{ url_for('setlists.show', setlist_id=setlist.id) if setlist else url_for('setlists.index') }}">キャンセル</a>
+  </div>
+</form>
+
+{% if setlist %}
+  <form method="post" action="{{ url_for('setlists.delete', setlist_id=setlist.id) }}"
+        class="danger-zone" onsubmit="return confirm('このセットリストを削除しますか？（曲そのものは消えません）')">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="button danger" type="submit">このセットリストを削除</button>
+  </form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}CSV 書き出し - {% endblock %}
+{% block content %}
+<h1>CSV 書き出し</h1>
+<p>自分の曲とセットリストを CSV ファイルとしてダウンロードできます。バックアップにどうぞ。Excel でもそのまま開けます。</p>
+<div class="form-actions vertical">
+  <a class="button primary" href="{{ url_for('export.songs_csv') }}">曲の一覧（songs.csv）</a>
+  <a class="button primary" href="{{ url_for('export.setlists_csv') }}">セットリスト（setlists.csv）</a>
+</div>
+{% endblock %}

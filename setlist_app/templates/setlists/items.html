@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}曲の追加・並べ替え - {% endblock %}
+{% block content %}
+<h1>{{ setlist.title }}</h1>
+<p class="total">合計 <strong>{{ setlist.total_seconds|duration }}</strong>
+  <span class="sub">（{{ setlist.items|length }} 曲）</span></p>
+
+{% if songs %}
+  <form method="post" action="{{ url_for('setlists.add_item', setlist_id=setlist.id) }}" class="add-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="song_id" required aria-label="追加する曲">
+      <option value="">曲を選ぶ…</option>
+      {% for song in songs %}
+        <option value="{{ song.id }}">{{ song.title }}{% if song.duration_seconds is not none %}（{{ song.duration_seconds|duration }}）{% endif %}</option>
+      {% endfor %}
+    </select>
+    <button class="button primary" type="submit">追加</button>
+  </form>
+{% else %}
+  <p class="empty">曲が登録されていません。先に <a href="{{ url_for('songs.new') }}">曲を登録</a> してください。</p>
+{% endif %}
+
+{% if setlist.items %}
+  <ol class="edit-list">
+    {% for item in setlist.items %}
+      <li id="item-{{ item.id }}">
+        <span class="number">{{ loop.index }}</span>
+        <span class="edit-title">
+          {{ item.song.title }}
+          {% if item.song.duration_seconds is not none %}<span class="time">{{ item.song.duration_seconds|duration }}</span>{% endif %}
+        </span>
+        <div class="edit-buttons">
+          <form method="post" action="{{ url_for('setlists.move_item', setlist_id=setlist.id, item_id=item.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="up">
+            <button class="button icon" type="submit" aria-label="上へ" {% if loop.first %}disabled{% endif %}>↑</button>
+          </form>
+          <form method="post" action="{{ url_for('setlists.move_item', setlist_id=setlist.id, item_id=item.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="direction" value="down">
+            <button class="button icon" type="submit" aria-label="下へ" {% if loop.last %}disabled{% endif %}>↓</button>
+          </form>
+          <form method="post" action="{{ url_for('setlists.delete_item', setlist_id=setlist.id, item_id=item.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button icon danger" type="submit" aria-label="セットリストから外す">✕</button>
+          </form>
+        </div>
+      </li>
+    {% endfor %}
+  </ol>
+{% endif %}
+
+<div class="form-actions">
+  <a class="button primary" href="{{ url_for('setlists.show', setlist_id=setlist.id) }}">完了（ライブ表示へ）</a>
+</div>
+{% endblock %}

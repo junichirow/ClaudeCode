@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}ユーザー登録 - {% endblock %}
+{% block content %}
+<h1>ユーザー登録</h1>
+<form method="post" class="form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>ユーザー名
+    <input name="username" value="{{ username }}" maxlength="50" autocomplete="username" autocapitalize="off" required>
+  </label>
+  <label>パスワード（8 文字以上）
+    <input name="password" type="password" minlength="8" autocomplete="new-password" required>
+  </label>
+  <label>パスワード（確認）
+    <input name="password_confirm" type="password" minlength="8" autocomplete="new-password" required>
+  </label>
+  <button class="button primary" type="submit">登録する</button>
+</form>
+<p class="sub">登録済みの方は <a href="{{ url_for('auth.login') }}">ログイン</a></p>
+{% endblock %}
