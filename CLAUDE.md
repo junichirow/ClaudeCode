@@ -10,7 +10,7 @@ Python の小さな学習・実験用リポジトリ。アプリごとにサブ�
 - `todo_app/` — Flask + SQLite の TODO リスト Web アプリ
 - `setlist_app/` — バンド向けセットリスト管理 Web アプリ（Flask-Login でユーザーごとにデータを分離。ローカルは SQLite、本番は Render + Supabase PostgreSQL）
 - `game_app/` — HTML/CSS/JS（Canvas）だけのシューティングゲーム。ビルド不要
-- `game2_app/` — 同じく Canvas だけの横スクロールアクション（クマがパンチ・ジャンプ・レーザーで戦う全 3 ステージ。1 面は森でシロクマ、2 面は竹林でパンダ、3 面は水中（重力が弱くジャンプがゆるやか）でサメがボス）。PC はキーボード、スマホは画面下のボタンで操作
+- `game2_app/` — 同じく Canvas だけの横スクロールアクション（クマがパンチ・ジャンプ・レーザーで戦う全 4 ステージ。1 面は森でシロクマ、2 面は竹林でパンダ、3 面は水中（重力が弱くジャンプがゆるやか）でサメ、4 面は 1 面を難しくした夕暮れの森でパワーアップしたシロクマがボス）。PC はキーボード、スマホは画面下のボタンで操作
 - 2つのゲームは `.github/workflows/pages.yml` で `main` へのプッシュ時に GitHub Pages へ公開（`game_app` がサイトのトップ、`game2_app` が `/game2/`）
   - 公開アドレス：https://junichirow.github.io/ClaudeCode/ （シューティング）、https://junichirow.github.io/ClaudeCode/game2/ （クマクマ大冒険）
 

@@ -30,14 +30,17 @@ const LEVEL_W = LEVEL_COLS * T;
 const ARENA_X = LEVEL_W - W; // ボス部屋（ステージの右端の 1 画面）の左端
 const GROUND_Y = 10 * T; // ふつうの地面の高さ
 
-// ステージごとの設定。1 面は森とシロクマ、2 面は竹林とパンダ、3 面は海の底とサメ
+// ステージごとの設定。1 面は森とシロクマ、2 面は竹林とパンダ、3 面は海の底とサメ、
+// 4 面は夕方の森でパワーアップしたシロクマ（1 面を難しくしたステージ）
 const STAGES = {
   1: { title: "森のシロクマ", music: "forest", bossName: "大ボス シロクマ", bossHp: 16 },
   2: { title: "竹林のパンダ", music: "bamboo", bossName: "大ボス パンダ", bossHp: 20 },
   3: { title: "海の底のサメ", music: "sea", bossName: "大ボス サメ", bossHp: 22 },
+  4: { title: "夕暮れの森のシロクマ", music: "forest", bossName: "大ボス シロクマ（パワーアップ）", bossHp: 26 },
 };
-const LAST_STAGE = 3;
-// URL に ?stage=2 や ?stage=3 をつけるとその面から始められる（動作確認用）
+const LAST_STAGE = 4;
+const isStrongShirokuma = () => stage === 4; // 4 面のシロクマは 1 面より速く、技も多い
+// URL に ?stage=2 〜 ?stage=4 をつけるとその面から始められる（動作確認用）
 const START_STAGE = (() => {
   const n = Number(new URLSearchParams(location.search).get("stage"));
   return STAGES[n] ? n : 1;
@@ -200,7 +203,7 @@ function buildLevel(n) {
   };
   const heart = (c, r) => itemSpawns.push({ c, r, kind: "heart" });
   const flag = (c) => flagCols.push(c);
-  const layout = { 1: layoutStage1, 2: layoutStage2, 3: layoutStage3 }[n];
+  const layout = { 1: layoutStage1, 2: layoutStage2, 3: layoutStage3, 4: layoutStage4 }[n];
   layout({ ground, plank, enemy, honey, heart, flag });
   for (let r = 0; r < 10; r++) set(LEVEL_COLS - 1, r, "#"); // ボス部屋の右の壁
 
@@ -410,6 +413,78 @@ function layoutStage3({ ground, plank, enemy, honey, heart, flag }) {
   enemy(170, "fish", 4);
   honey(172, 8, 3);
   flag(175);
+}
+
+// 4 面：夕方の森。1 面に似ているが、穴が広く・足場が細く・跳ねる敵が多い。ハートは 1 つだけ
+function layoutStage4({ ground, plank, enemy, honey, heart, flag }) {
+  // 1. はじまりの森
+  ground(0, 26);
+  honey(8, 8, 3);
+  plank(12, 7, 2);
+  honey(12, 6, 2);
+  enemy(15);
+  enemy(20, "jump");
+  enemy(24);
+
+  // 2. 穴と段差
+  ground(30, 45);
+  ground(35, 36, 8);
+  honey(35, 7, 2);
+  enemy(40, "jump");
+  enemy(43);
+  plank(48, 7, 2); // 穴の上の細い足場
+  honey(48, 6, 2);
+  ground(53, 74);
+  enemy(57, "jump");
+  plank(60, 7, 3);
+  heart(61, 6);
+  enemy(64);
+  enemy(67, "jump");
+  enemy(71);
+
+  // 3. 高い丘
+  ground(75, 86, 7);
+  honey(78, 4, 3);
+  enemy(80, "walk", 6);
+  enemy(84, "jump", 6);
+  ground(87, 98);
+  flag(92);
+
+  // 4. 小さな足場が続くところ
+  honey(100, 8, 2);
+  ground(102, 104);
+  enemy(103);
+  honey(106, 8, 2);
+  ground(108, 109);
+  ground(112, 114, 9);
+  honey(113, 7);
+  ground(117, 150);
+  enemy(121, "jump");
+  enemy(125);
+  enemy(128, "jump");
+  enemy(131);
+
+  // 5. 木の上の足場（1 面より細い）
+  plank(134, 7, 2);
+  plank(138, 5, 2);
+  plank(142, 3, 3);
+  honey(142, 2, 3);
+  plank(147, 5, 2);
+  honey(147, 4, 2);
+  enemy(140);
+  enemy(145, "jump");
+  enemy(149);
+  plank(152, 7, 2); // 穴の上の細い足場
+
+  // 6. ボスの手前とボス部屋
+  ground(156, LEVEL_COLS - 1);
+  enemy(159, "jump");
+  enemy(162);
+  enemy(165, "jump");
+  enemy(168);
+  enemy(171, "jump");
+  honey(173, 8, 3);
+  flag(176);
 }
 
 function tileAt(c, r) {
@@ -939,6 +1014,7 @@ function nextBossAction() {
     1: ["walk", "crouch", "throw"],
     2: ["walk", "crouch", "throw", "roll"],
     3: ["dash", "dive", "bubble"],
+    4: ["walk", "crouch", "throw"],
   }[stage];
   const choices = moves.filter((c) => c !== boss.last); // 同じ技を続けない
   const next = choices[Math.floor(Math.random() * choices.length)];
@@ -1001,10 +1077,12 @@ function updateBoss() {
   }
 }
 
-// 1 面・2 面のボス（地面の上で戦う）
+// 1 面・2 面・4 面のボス（地面の上で戦う）。4 面のシロクマは待ち時間が短く、動きが速く、雪玉も多い。
+// 怒ると大ジャンプを 2 回続けてくる
 function updateLandBoss(b, angry, toPlayer) {
   const p = player;
   const wasOnGround = b.onGround;
+  const strong = isStrongShirokuma();
 
   // 踏まれて目を回している間は動けない（空中なら落ちるだけ）
   if (b.stun > 0) {
@@ -1018,17 +1096,17 @@ function updateLandBoss(b, angry, toPlayer) {
     case "idle":
       b.vx = 0;
       b.facing = toPlayer;
-      if (b.t > (angry ? 25 : 45)) nextBossAction();
+      if (b.t > (strong ? (angry ? 15 : 30) : angry ? 25 : 45)) nextBossAction();
       break;
     case "walk":
       if (b.t === 1) b.facing = toPlayer;
-      b.vx = b.facing * (angry ? 3.2 : 2);
+      b.vx = b.facing * (strong ? (angry ? 4 : 2.8) : angry ? 3.2 : 2);
       if (b.t > 80) setBossState("idle");
       break;
     case "crouch": // ジャンプの溜め
       b.vx = 0;
       b.facing = toPlayer;
-      if (b.t > (angry ? 14 : 24)) {
+      if (b.t > (strong ? (angry ? 10 : 16) : angry ? 14 : 24)) {
         b.vy = -14;
         b.vx = clamp((p.x + p.w / 2 - b.w / 2 - b.x) / 46, -6, 6); // プレイヤーのいる場所をめがけて跳ぶ
         setBossState("air");
@@ -1039,9 +1117,13 @@ function updateLandBoss(b, angry, toPlayer) {
     case "throw": {
       b.vx = 0;
       b.facing = toPlayer;
-      const throwAt = angry ? [20, 34, 48] : [30];
-      if (throwAt.includes(b.t)) throwSnowball(angry ? [36, 46, 58][throwAt.indexOf(b.t)] : 46);
-      if (b.t > (angry ? 70 : 60)) setBossState("idle");
+      // [投げるフレーム, 届くまでのフレーム] の組
+      const throws = strong
+        ? angry ? [[16, 34], [28, 42], [40, 50], [52, 58]] : [[22, 40], [40, 52]]
+        : angry ? [[20, 36], [34, 46], [48, 58]] : [[30, 46]];
+      const hit = throws.find(([at]) => at === b.t);
+      if (hit) throwSnowball(hit[1]);
+      if (b.t > throws[throws.length - 1][0] + 22) setBossState("idle");
       break;
     }
     case "roll": // パンダだけの技：丸まってためてから転がる。壁で 2 回はね返ったら止まる
@@ -1073,13 +1155,20 @@ function updateLandBoss(b, angry, toPlayer) {
     Sound.stomp(true);
     for (let i = 0; i < 3; i++) dust(b.x + rand(0, b.w), b.y + b.h);
     if (b.state === "air" && b.stun === 0) shockwaves(b, angry);
-    setBossState("idle");
+    // 4 面のシロクマは怒っていると、着地してすぐもう一度跳ぶ（2 回まで）
+    if (b.state === "air" && b.stun === 0 && strong && angry && !b.chained) {
+      b.chained = true;
+      setBossState("crouch");
+    } else {
+      b.chained = false;
+      setBossState("idle");
+    }
   }
 }
 
 // ボスの左右に衝撃波を走らせる
 function shockwaves(b, angry) {
-  const speed = angry ? 6.5 : 5;
+  const speed = (angry ? 6.5 : 5) + (isStrongShirokuma() ? 1 : 0);
   waves.push({ x: b.x - 4, y: b.y + b.h, dir: -1, speed });
   waves.push({ x: b.x + b.w + 4, y: b.y + b.h, dir: 1, speed });
 }
@@ -1432,32 +1521,40 @@ function drawBackground(cx) {
     return;
   }
   const bamboo = stage === 2;
+  const dusk = stage === 4; // 4 面は夕方の森
+  const skyColors = bamboo ? ["#9fd8c8", "#d8f0d0", "#eef7d8"] : dusk ? ["#6b5ca5", "#f08a5d", "#fcd59a"] : ["#74c3ef", "#c9eedb", "#e6f5d0"];
   const sky = ctx.createLinearGradient(0, 0, 0, H);
-  sky.addColorStop(0, bamboo ? "#9fd8c8" : "#74c3ef");
-  sky.addColorStop(0.7, bamboo ? "#d8f0d0" : "#c9eedb");
-  sky.addColorStop(1, bamboo ? "#eef7d8" : "#e6f5d0");
+  sky.addColorStop(0, skyColors[0]);
+  sky.addColorStop(0.7, skyColors[1]);
+  sky.addColorStop(1, skyColors[2]);
   ctx.fillStyle = sky;
   ctx.fillRect(-20, -20, W + 40, H + 40);
 
-  // 太陽
-  circle(660, 80, 52, "rgba(255, 244, 176, 0.35)");
-  circle(660, 80, 36, "#fff4b0");
+  // 太陽（夕方は大きな夕日が山に沈みかけている）
+  if (dusk) {
+    circle(620, 250, 80, "rgba(255, 200, 120, 0.3)");
+    circle(620, 250, 56, "#ffb35c");
+  } else {
+    circle(660, 80, 52, "rgba(255, 244, 176, 0.35)");
+    circle(660, 80, 36, "#fff4b0");
+  }
 
   // 雲
   const cloudGap = 380;
   const cloudOffset = cx * 0.12;
+  const cloud = dusk ? "rgba(255, 200, 190, 0.85)" : "rgba(255,255,255,0.9)";
   for (let k = Math.floor(cloudOffset / cloudGap) - 1; k < Math.floor(cloudOffset / cloudGap) + 4; k++) {
     const x = k * cloudGap - cloudOffset + hash(k) * 120;
     const y = 50 + hash(k + 50) * 90;
-    circle(x, y, 22, "rgba(255,255,255,0.9)");
-    circle(x + 26, y - 10, 28, "rgba(255,255,255,0.9)");
-    circle(x + 56, y, 22, "rgba(255,255,255,0.9)");
-    oval(x + 28, y + 10, 46, 12, "rgba(255,255,255,0.9)");
+    circle(x, y, 22, cloud);
+    circle(x + 26, y - 10, 28, cloud);
+    circle(x + 56, y, 22, cloud);
+    oval(x + 28, y + 10, 46, 12, cloud);
   }
 
   // 遠くの山
-  drawHills(cx * 0.2, 280, 40, bamboo ? "#9cc9a0" : "#a8d8b0");
-  drawHills(cx * 0.32 + 900, 320, 30, bamboo ? "#79b385" : "#86c493");
+  drawHills(cx * 0.2, 280, 40, bamboo ? "#9cc9a0" : dusk ? "#8a6a8f" : "#a8d8b0");
+  drawHills(cx * 0.32 + 900, 320, 30, bamboo ? "#79b385" : dusk ? "#6a5578" : "#86c493");
 
   if (bamboo) {
     drawBambooGrove(cx * 0.35, 70, 8, "#8cc78a", "#76b174");
@@ -1473,9 +1570,9 @@ function drawBackground(cx) {
     const h = 120 + hash(k + 3) * 90;
     const r = 34 + hash(k + 11) * 18;
     const dark = hash(k + 19) > 0.5;
-    ctx.fillStyle = "#7a5a3a";
+    ctx.fillStyle = dusk ? "#5e4232" : "#7a5a3a";
     ctx.fillRect(x - 6, GROUND_Y - h, 12, h);
-    const leaf = dark ? "#4e9a5c" : "#5fae68";
+    const leaf = dusk ? (dark ? "#3f6e4e" : "#4f7f55") : dark ? "#4e9a5c" : "#5fae68";
     circle(x, GROUND_Y - h, r, leaf);
     circle(x - r * 0.6, GROUND_Y - h + r * 0.4, r * 0.7, leaf);
     circle(x + r * 0.6, GROUND_Y - h + r * 0.4, r * 0.7, leaf);
@@ -2257,10 +2354,12 @@ function drawEnemy(e) {
 }
 
 // ボス：大きなシロクマ（赤白ボーダーの T シャツ）。原点は足元の中心、右向きで描く
-function drawBigShirokuma({ state: s = "idle", t = 0, angry = false, down = false } = {}) {
+// strong：4 面のパワーアップしたシロクマ（紺のボーダーと赤いはちまき）
+function drawBigShirokuma({ state: s = "idle", t = 0, angry = false, down = false, strong = false } = {}) {
   const white = "#f7fbff";
   const edge = "#a9bccf";
   const red = "#e63946";
+  const stripe = strong ? "#1d3557" : red;
 
   oval(-22, -12, 17, 13, white, edge);
   oval(22, -12, 17, 13, white, edge);
@@ -2272,7 +2371,7 @@ function drawBigShirokuma({ state: s = "idle", t = 0, angry = false, down = fals
   ctx.beginPath();
   ctx.ellipse(0, -46, 40, 36, 0, 0, Math.PI * 2);
   ctx.clip();
-  ctx.fillStyle = red;
+  ctx.fillStyle = stripe;
   for (let y = -80; y < -8; y += 14) ctx.fillRect(-45, y, 90, 7);
   ctx.restore();
   ctx.beginPath();
@@ -2289,6 +2388,25 @@ function drawBigShirokuma({ state: s = "idle", t = 0, angry = false, down = fals
   circle(10, -86, 30, white, edge);
   oval(28, -77, 14, 10, "#ffffff", edge);
   oval(37, -82, 6, 4.5, "#222");
+  if (strong) {
+    // はちまき（頭の後ろでしっぽがなびく）
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(10, -86, 30, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.fillStyle = red;
+    ctx.fillRect(-25, -110, 70, 8);
+    ctx.restore();
+    const flap = Math.sin(t * 0.3) * 4;
+    ctx.beginPath();
+    ctx.moveTo(-16, -108);
+    ctx.lineTo(-38, -112 + flap);
+    ctx.lineTo(-36, -100 + flap);
+    ctx.lineTo(-16, -102);
+    ctx.closePath();
+    ctx.fillStyle = red;
+    ctx.fill();
+  }
   if (down) {
     xEye(16, -92, 4);
     xEye(31, -92, 4);
@@ -2448,7 +2566,7 @@ function drawBoss(b) {
     drawPandaBall(b.x * 0.025);
   } else {
     ctx.scale(b.facing, 1);
-    const look = { state: b.state, t: b.t, angry: bossAngry(), down: b.state === "down" };
+    const look = { state: b.state, t: b.t, angry: bossAngry(), down: b.state === "down", strong: isStrongShirokuma() };
     if (stage === 2) drawBigPanda(look);
     else drawBigShirokuma(look);
   }
