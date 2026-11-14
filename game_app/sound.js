@@ -39,6 +39,7 @@ const Sound = (() => {
   let step = 0;
   let nextTime = 0;
   let paused = false;
+  let intense = false; // 3 方向ショット中は BGM を速く激しくする
 
   const freq = (n) => 440 * 2 ** ((n - 69) / 12);
 
@@ -101,7 +102,7 @@ const Sound = (() => {
   function schedule() {
     if (!ac || !track || paused) return;
     const t = TRACKS[track];
-    const stepDur = 60 / t.bpm / 2;
+    const stepDur = 60 / (t.bpm * (intense ? 1.2 : 1)) / 2;
     // タブが裏に回ってタイマーが止まっていた場合は、まとめて鳴らさずに今から再開する
     if (nextTime < ac.currentTime - 0.2) nextTime = ac.currentTime + 0.05;
     while (nextTime < ac.currentTime + 0.12) {
@@ -113,12 +114,21 @@ const Sound = (() => {
 
   function playStep(t, i, time, stepDur) {
     const m = t.melody[i];
-    if (m) tone(freq(m), time, stepDur * 0.9, { vol: 0.18, dest: musicGain });
+    if (m) {
+      // 激しいモードはギザギザした音色にして、1 オクターブ上も重ねる
+      tone(freq(m), time, stepDur * 0.9, { type: intense ? "sawtooth" : "square", vol: intense ? 0.14 : 0.18, dest: musicGain });
+      if (intense) tone(freq(m + 12), time, stepDur * 0.6, { vol: 0.06, dest: musicGain });
+    }
     const root = t.bassRoots[Math.floor(i / 8)];
     tone(freq(root + t.bassPattern[i % 8]), time, stepDur * 0.8, { type: "triangle", vol: 0.5, dest: musicGain });
     // ドラム：表拍にキック、裏拍にハイハット
     if (i % 2 === 0) tone(150, time, 0.12, { type: "sine", vol: 0.5, dest: musicGain, toFreq: 40 });
     else noise(time, 0.04, { vol: 0.12, dest: musicGain, filter: 8000 });
+    if (intense) {
+      // 激しいモード：2・4 拍目にスネア、表拍にもハイハットを足す
+      if (i % 4 === 2) noise(time, 0.12, { vol: 0.3, dest: musicGain, filter: 4000 });
+      else if (i % 2 === 0) noise(time, 0.03, { vol: 0.08, dest: musicGain, filter: 9000 });
+    }
   }
 
   function playMusic(name) {
@@ -126,6 +136,10 @@ const Sound = (() => {
     track = name;
     step = 0;
     nextTime = ac.currentTime + 0.05;
+  }
+
+  function setIntense(on) {
+    intense = on;
   }
 
   function stopMusic() {
@@ -153,6 +167,7 @@ const Sound = (() => {
     unlock,
     playMusic,
     stopMusic,
+    setIntense,
     setPaused,
     toggleMute,
     isMuted: () => muted,

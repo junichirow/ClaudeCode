@@ -52,7 +52,10 @@ let player, bullets, enemies, enemyBullets, stars;
 let particles = []; // タイトル画面でも更新されるので最初から空配列にしておく
 let score, lives, level, spawnTimer, shotCooldown, invincible, frame;
 let boss, bossCount, nextBossScore, warningTimer;
+let tripleShot; // 大ボスのシロクマを倒すと 3 方向ショットになる
 const BOSS_INTERVAL = 3000; // この点数ごとにボスが出る
+// テストモード（URL に ?test を付ける）：開始直後に大ボスのシロクマが出る
+const TEST_MODE = new URLSearchParams(location.search).has("test");
 let highScore = Number(localStorage.getItem(HIGH_SCORE_KEY)) || 0;
 
 let gameOverAt = 0;
@@ -78,11 +81,13 @@ function startGame() {
   frame = 0;
   boss = null;
   bossCount = 0;
-  nextBossScore = BOSS_INTERVAL;
+  nextBossScore = TEST_MODE ? 0 : BOSS_INTERVAL;
   warningTimer = 0;
+  tripleShot = false;
   paused = false;
   state = "playing";
   Sound.setPaused(false);
+  Sound.setIntense(false);
   Sound.playMusic("main");
 }
 
@@ -105,7 +110,7 @@ const BOSS_TYPES = {
     rx: 52,
     ry: 56,
     baseY: 140,
-    hp: (n) => 200 + n * 20,
+    hp: (n) => 150 + n * 15,
     speed: (n) => 1.2 + n * 0.15,
     points: 10000,
     colors: ["#ffffff", "#e63946"],
@@ -115,7 +120,7 @@ const BOSS_TYPES = {
 
 function spawnBoss() {
   bossCount++;
-  const kind = bossCount % 3 === 0 ? "bear" : "shark";
+  const kind = bossCount % 3 === 0 || (TEST_MODE && bossCount === 1) ? "bear" : "shark";
   const type = BOSS_TYPES[kind];
   const hp = type.hp(bossCount);
   boss = { kind, type, x: W / 2, y: -80, vx: type.speed(bossCount), hp, maxHp: hp, t: 0, flash: 0 };
@@ -129,7 +134,11 @@ function updateBoss() {
   b.t++;
   if (b.flash > 0) b.flash--;
   if (b.y < b.type.baseY) {
-    b.y += 1.5; // 登場中は降りてくるだけ
+    b.y += 1.5;
+    // 降りてくる間も左右に動き、画面に入ったらすぐ攻撃する
+    b.x += b.vx;
+    if (b.x < 80 || b.x > W - 80) b.vx *= -1;
+    if (b.y > 0) b.kind === "bear" ? updateBear(b) : updateShark(b);
     return;
   }
   // 左右に動き、上下にゆらゆら
@@ -159,33 +168,33 @@ function updateShark(b) {
 
 function updateBear(b) {
   // 全方位に広がる輪っか弾（少しずつ角度をずらす）
-  if (b.t % 80 === 0) {
-    const n = 18;
-    const offset = b.t / 80 * 0.17;
+  if (b.t % 110 === 0) {
+    const n = 14;
+    const offset = b.t / 110 * 0.17;
     for (let i = 0; i < n; i++) {
       const a = offset + (Math.PI * 2 * i) / n;
-      enemyBullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 2.6, vy: Math.sin(a) * 2.6 });
+      enemyBullets.push({ x: b.x, y: b.y, vx: Math.cos(a) * 2.2, vy: Math.sin(a) * 2.2 });
     }
   }
   // 両手から自機狙いの 3 方向弾
-  if (b.t % 40 === 20) {
+  if (b.t % 60 === 30) {
     for (const hx of [-60, 60]) {
       const a = Math.atan2(player.y - (b.y + 20), player.x - (b.x + hx));
       for (const d of [-0.18, 0, 0.18]) {
         enemyBullets.push({
           x: b.x + hx,
           y: b.y + 20,
-          vx: Math.cos(a + d) * 4,
-          vy: Math.sin(a + d) * 4,
+          vx: Math.cos(a + d) * 3.2,
+          vy: Math.sin(a + d) * 3.2,
         });
       }
     }
   }
   // 体力が半分を切ると怒って、ぐるぐる回る弾も撃つ
-  if (b.hp < b.maxHp / 2 && b.t % 7 === 0) {
+  if (b.hp < b.maxHp / 2 && b.t % 12 === 0) {
     const a = b.t / 12;
     for (const s of [0, Math.PI]) {
-      enemyBullets.push({ x: b.x, y: b.y, vx: Math.cos(a + s) * 3, vy: Math.sin(a + s) * 3 });
+      enemyBullets.push({ x: b.x, y: b.y, vx: Math.cos(a + s) * 2.5, vy: Math.sin(a + s) * 2.5 });
     }
   }
 }
@@ -205,6 +214,12 @@ function defeatBoss() {
     explode(boss.x + rand(-50, 50), boss.y + rand(-30, 30), type.colors[i % 2], 30);
   }
   enemyBullets = [];
+  // 大ボスのシロクマを倒したら、ライフを 3 に戻し、ショットを 3 方向に強化する
+  if (boss.kind === "bear") {
+    lives = 3;
+    tripleShot = true;
+    Sound.setIntense(true); // BGM も速く激しくする
+  }
   boss = null;
   nextBossScore = score + BOSS_INTERVAL;
   Sound.bossDown();
@@ -222,13 +237,13 @@ function spawnEnemy() {
   const r = Math.random();
   if (r < 0.15 && level >= 3) {
     // 大型：硬くてよく撃ってくる
-    enemies.push({ type: "big", x: rand(40, W - 40), y: -40, r: 26, hp: 6, vy: 0.8, vx: 0, t: 0, points: 300 });
+    enemies.push({ type: "big", x: rand(40, W - 40), y: -40, r: 26, hp: 4, vy: 0.8, vx: 0, t: 0, points: 300 });
   } else if (r < 0.45 && level >= 2) {
     // ジグザグ
     enemies.push({ type: "zig", x: rand(40, W - 40), y: -20, r: 14, hp: 1, vy: 2, vx: 0, t: 0, points: 150 });
   } else {
     // 通常
-    enemies.push({ type: "basic", x: rand(20, W - 20), y: -20, r: 15, hp: 1, vy: 1.5 + level * 0.2, vx: 0, t: 0, points: 100 });
+    enemies.push({ type: "basic", x: rand(20, W - 20), y: -20, r: 15, hp: 1, vy: 1.2 + Math.min(level * 0.15, 1.5), vx: 0, t: 0, points: 100 });
   }
 }
 
@@ -280,13 +295,23 @@ function update() {
   // ショット（スペース長押し / タッチ中は自動連射）
   if (shotCooldown > 0) shotCooldown--;
   if ((keys.has(" ") || touch !== null) && shotCooldown === 0) {
-    bullets.push({ x: player.x - 8, y: player.y - 10 });
-    bullets.push({ x: player.x + 8, y: player.y - 10 });
+    if (tripleShot) {
+      // 3 方向ショット（まっすぐ・左ななめ・右ななめ）
+      for (const vx of [-2.5, 0, 2.5]) {
+        bullets.push({ x: player.x + vx * 3, y: player.y - 10, vx });
+      }
+    } else {
+      bullets.push({ x: player.x - 8, y: player.y - 10, vx: 0 });
+      bullets.push({ x: player.x + 8, y: player.y - 10, vx: 0 });
+    }
     shotCooldown = 9;
     Sound.shot();
   }
-  for (const b of bullets) b.y -= 9;
-  bullets = bullets.filter((b) => b.y > -10);
+  for (const b of bullets) {
+    b.x += b.vx;
+    b.y -= 9;
+  }
+  bullets = bullets.filter((b) => b.y > -10 && b.x > -10 && b.x < W + 10);
 
   // 敵の出現（レベルが上がるほど間隔が短くなる）
   // ボス戦中は雑魚の出現を止める
@@ -295,7 +320,7 @@ function update() {
   spawnTimer--;
   if (!boss && spawnTimer <= 0) {
     spawnEnemy();
-    spawnTimer = Math.max(15, 60 - level * 6);
+    spawnTimer = Math.max(25, 75 - level * 5);
   }
   if (boss) updateBoss();
 
@@ -305,10 +330,10 @@ function update() {
     if (e.type === "zig") e.vx = Math.sin(e.t / 15) * 3;
     e.x += e.vx;
     e.y += e.vy;
-    const fireRate = e.type === "big" ? 50 : 140 - Math.min(level * 10, 80);
+    const fireRate = e.type === "big" ? 80 : 200 - Math.min(level * 10, 100);
     if (e.y > 0 && e.y < H * 0.7 && Math.random() < 1 / fireRate) {
       const a = Math.atan2(player.y - e.y, player.x - e.x);
-      const sp = 3 + level * 0.2;
+      const sp = 2.5 + Math.min(level * 0.15, 1.5);
       enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
     }
   }
@@ -360,7 +385,7 @@ function update() {
   if (invincible > 0) {
     invincible--;
   } else {
-    const hitBullet = enemyBullets.find((b) => hit(b.x, b.y, 4, player.x, player.y, 10));
+    const hitBullet = enemyBullets.find((b) => hit(b.x, b.y, 4, player.x, player.y, 7));
     const hitEnemy = enemies.find((e) => hit(e.x, e.y, e.r, player.x, player.y, 12));
     const hitBossBody = boss && hitBoss(player.x, player.y, 10);
     if (hitBullet || hitEnemy || hitBossBody) {
@@ -374,7 +399,7 @@ function update() {
 function damage() {
   lives--;
   explode(player.x, player.y, "#4cc9f0", 30);
-  invincible = 120;
+  invincible = 180;
   enemyBullets = [];
   Sound.damage();
   if (lives <= 0) {
