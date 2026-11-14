@@ -30,6 +30,20 @@ const Sound = (() => {
       bassRoots: [38, 34, 36, 33],
       bassPattern: [0, 7, 12, 7, 0, 7, 12, 7],
     },
+    // 海の底のステージ：F - Dm - B♭ - C のゆったりしたループ。メロディはやわらかい三角波
+    sea: {
+      bpm: 104,
+      lead: "triangle",
+      leadVol: 0.3,
+      melody: [
+        72, 0, 77, 0, 76, 72, 69, 0,
+        74, 0, 72, 69, 65, 0, 69, 0,
+        70, 0, 74, 77, 74, 0, 70, 72,
+        72, 0, 79, 0, 76, 0, 0, 0,
+      ],
+      bassRoots: [41, 38, 34, 36],
+      bassPattern: [0, 7, 12, 7, 0, 7, 12, 7],
+    },
     // ボス戦：Em - C - D - B の速くて緊張感のあるループ
     boss: {
       bpm: 160,
@@ -130,7 +144,7 @@ const Sound = (() => {
 
   function playStep(t, i, time, stepDur) {
     const m = t.melody[i];
-    if (m) tone(freq(m), time, stepDur * 0.9, { vol: 0.16, dest: musicGain });
+    if (m) tone(freq(m), time, stepDur * 0.9, { type: t.lead || "square", vol: t.leadVol || 0.16, dest: musicGain });
     const root = t.bassRoots[Math.floor(i / 8)];
     tone(freq(root + t.bassPattern[i % 8]), time, stepDur * 0.8, { type: "triangle", vol: 0.5, dest: musicGain });
     // ドラム：表拍にキック、裏拍にハイハット
@@ -208,6 +222,10 @@ const Sound = (() => {
       noise(now, 0.5, { vol: 0.35, filter: 6000 });
     }),
     laserReady: sfx((now) => arpeggio(now, [84, 91], 0.08, 0.15, { type: "triangle", vol: 0.3 })),
+    bubble: sfx((now) => {
+      tone(260, now, 0.18, { type: "sine", vol: 0.35, toFreq: 900 });
+      tone(520, now + 0.06, 0.12, { type: "sine", vol: 0.2, toFreq: 1300 });
+    }),
     throwBall: sfx((now) => tone(600, now, 0.12, { type: "triangle", vol: 0.2, toFreq: 300 })),
     bossDown: sfx((now) => {
       for (let i = 0; i < 4; i++) noise(now + i * 0.15, 0.5, { vol: 0.5, filter: 1200 });

@@ -30,14 +30,28 @@ const LEVEL_W = LEVEL_COLS * T;
 const ARENA_X = LEVEL_W - W; // ボス部屋（ステージの右端の 1 画面）の左端
 const GROUND_Y = 10 * T; // ふつうの地面の高さ
 
-// ステージごとの設定。1 面は森とシロクマ、2 面は竹林とパンダ
+// ステージごとの設定。1 面は森とシロクマ、2 面は竹林とパンダ、3 面は海の底とサメ
 const STAGES = {
   1: { title: "森のシロクマ", music: "forest", bossName: "大ボス シロクマ", bossHp: 16 },
   2: { title: "竹林のパンダ", music: "bamboo", bossName: "大ボス パンダ", bossHp: 20 },
+  3: { title: "海の底のサメ", music: "sea", bossName: "大ボス サメ", bossHp: 22 },
 };
-const LAST_STAGE = 2;
-// URL に ?stage=2 をつけると 2 面から始められる（動作確認用）
-const START_STAGE = Number(new URLSearchParams(location.search).get("stage")) === 2 ? 2 : 1;
+const LAST_STAGE = 3;
+// URL に ?stage=2 や ?stage=3 をつけるとその面から始められる（動作確認用）
+const START_STAGE = (() => {
+  const n = Number(new URLSearchParams(location.search).get("stage"));
+  return STAGES[n] ? n : 1;
+})();
+
+// 3 面は水の中：重力が弱く、落ちるのもゆっくり。ジャンプの初速も下げるので、
+// 高さは陸とほぼ同じ（少し高い）まま、ふわっと長く浮いて遠くまで跳べる
+const WATER_GRAVITY = 0.3;
+const WATER_MAX_FALL = 5;
+const WATER_JUMP_SCALE = 0.75; // 跳ぶ・はね返るときの速さにかける倍率
+const inWater = () => stage === 3;
+const gravity = () => (inWater() ? WATER_GRAVITY : GRAVITY);
+const maxFall = () => (inWater() ? WATER_MAX_FALL : MAX_FALL);
+const jumpScale = () => (inWater() ? WATER_JUMP_SCALE : 1);
 
 const isTouchDevice = matchMedia("(hover: none) and (pointer: coarse)").matches;
 
@@ -186,7 +200,8 @@ function buildLevel(n) {
   };
   const heart = (c, r) => itemSpawns.push({ c, r, kind: "heart" });
   const flag = (c) => flagCols.push(c);
-  (n === 2 ? layoutStage2 : layoutStage1)({ ground, plank, enemy, honey, heart, flag });
+  const layout = { 1: layoutStage1, 2: layoutStage2, 3: layoutStage3 }[n];
+  layout({ ground, plank, enemy, honey, heart, flag });
   for (let r = 0; r < 10; r++) set(LEVEL_COLS - 1, r, "#"); // ボス部屋の右の壁
 
   return { tiles, enemySpawns, itemSpawns, flagCols };
@@ -327,6 +342,76 @@ function layoutStage2({ ground, plank, enemy, honey, heart, flag }) {
   flag(175);
 }
 
+// 3 面：海の底。水の中なのでジャンプがゆっくりで遠くまで跳べるぶん、穴（海溝）は広め。
+// 敵はカニ（歩く）・クラゲ（ふわふわ跳ねる）・ミニザメ（宙を泳ぐ）
+function layoutStage3({ ground, plank, enemy, honey, heart, flag }) {
+  // 1. 浅瀬（水の中の動きに慣れる）
+  ground(0, 26);
+  honey(8, 7, 3);
+  plank(12, 6, 3);
+  honey(12, 5, 3);
+  enemy(17);
+  enemy(23, "jump");
+
+  // 2. 海溝をとびこえる
+  ground(32, 46);
+  enemy(36, "fish", 6);
+  ground(40, 41, 8);
+  honey(40, 7, 2);
+  enemy(44);
+  plank(49, 7, 3); // 穴の上の岩場
+  honey(49, 6, 3);
+
+  // 3. 岩の段々
+  ground(55, 90);
+  enemy(58, "jump");
+  enemy(62, "fish", 5);
+  plank(64, 6, 4);
+  heart(65, 5);
+  enemy(69);
+  flag(72);
+  ground(78, 79, 9);
+  ground(80, 81, 8);
+  ground(82, 83, 7);
+  ground(84, 85, 6);
+  honey(84, 5, 2);
+  enemy(88);
+
+  // 4. 魚が泳ぐ深い海溝
+  plank(93, 7, 3);
+  honey(93, 6, 3);
+  enemy(95, "fish", 8);
+  ground(99, 120);
+  enemy(102);
+  enemy(107, "jump");
+  enemy(111, "fish", 6);
+  enemy(115);
+  flag(118);
+
+  // 5. 高い岩場
+  ground(121, 150);
+  plank(126, 7, 3);
+  plank(131, 4, 3);
+  plank(136, 2, 4);
+  honey(136, 1, 4);
+  plank(142, 5, 3);
+  heart(143, 4);
+  enemy(128, "fish", 8);
+  enemy(134);
+  enemy(140, "jump");
+  enemy(147, "fish", 6);
+  plank(152, 7, 3); // 穴の上の岩場
+
+  // 6. ボスの手前とボス部屋
+  ground(156, LEVEL_COLS - 1);
+  enemy(160, "jump");
+  enemy(164, "fish", 6);
+  enemy(167);
+  enemy(170, "fish", 4);
+  honey(172, 8, 3);
+  flag(175);
+}
+
 function tileAt(c, r) {
   if (c < 0 || c >= LEVEL_COLS) return "#"; // ステージの外は壁
   if (r < 0 || r >= ROWS) return ".";
@@ -360,7 +445,7 @@ function moveEntity(e) {
   }
 
   const prevBottom = e.y + e.h;
-  e.vy = Math.min(e.vy + GRAVITY, MAX_FALL);
+  e.vy = Math.min(e.vy + gravity(), maxFall());
   e.y += e.vy;
   e.onGround = false;
   const left = Math.floor(e.x / T);
@@ -449,10 +534,13 @@ function respawn() {
 }
 
 function makeEnemy(s) {
-  const w = 30;
-  const h = 28;
+  const fish = s.kind === "fish";
+  const w = fish ? 34 : 30;
+  const h = fish ? 20 : 28;
+  const x = s.c * T + (T - w) / 2;
+  const y = (s.r + 1) * T - h;
   return {
-    x: s.c * T + (T - w) / 2, y: (s.r + 1) * T - h, w, h, vx: 0, vy: 0,
+    x, y, w, h, vx: 0, vy: 0, homeX: x, baseY: y,
     kind: s.kind, facing: -1, onGround: false, active: false, dead: false, gone: false,
     t: 0, spin: 0, jumpTimer: 40 + Math.random() * 60,
   };
@@ -479,6 +567,14 @@ function burst(x, y, color, count = 12, speed = 4) {
 }
 
 const dust = (x, y) => burst(x, y, "#e3d3b0", 6, 2);
+
+// 水の中の泡。ほかの粒とちがって、ゆらゆらしながら上にのぼっていく
+function bubbleFx(x, y, count = 1) {
+  for (let i = 0; i < count; i++) {
+    const life = rand(50, 80);
+    particles.push({ x: x + rand(-4, 4), y, vx: rand(-0.3, 0.3), vy: rand(-1.2, -0.4), life, max: life, color: "#dff6ff", size: rand(2.5, 5), bubble: true });
+  }
+}
 
 function addScore(points, x, y) {
   score += points;
@@ -554,15 +650,16 @@ function updatePlayer() {
   // ジャンプ（足場から落ちた直後も少しだけ跳べる。ボタンを早く離すと低いジャンプ）
   p.coyote = p.onGround ? 6 : Math.max(0, p.coyote - 1);
   if (jumpBuffer > 0 && p.coyote > 0 && p.hurtTimer === 0 && p.laser === 0) {
-    p.vy = JUMP_SPEED;
+    p.vy = JUMP_SPEED * jumpScale();
     p.coyote = 0;
     p.jumpCut = false;
     jumpBuffer = 0;
     Sound.jump();
     dust(p.x + p.w / 2, p.y + p.h);
+    if (inWater()) bubbleFx(p.x + p.w / 2, p.y + 10, 4);
   }
   if (!p.jumpCut && p.vy < 0 && !holdJump()) {
-    p.vy = Math.max(p.vy, -5);
+    p.vy = Math.max(p.vy, -5 * jumpScale());
     p.jumpCut = true;
   }
   if (p.vy >= 0) p.jumpCut = true;
@@ -605,6 +702,7 @@ function updatePlayer() {
   if (p.onGround && !wasOnGround) dust(p.x + p.w / 2, p.y + p.h);
   if (p.invincible > 0) p.invincible--;
   p.walk = p.onGround && Math.abs(p.vx) > 0.5 ? p.walk + Math.abs(p.vx) * 0.12 : 0;
+  if (inWater() && frame % 40 === 0) bubbleFx(p.x + p.w / 2 + p.facing * 10, p.y + 6); // 水の中ではときどき口から泡が出る
   if (p.y > H + 40) miss(true);
 }
 
@@ -642,20 +740,31 @@ function updateEnemies() {
     if (e.dead) {
       // 倒された敵はくるくる回りながら飛んでいく
       e.x += e.vx;
-      e.vy += GRAVITY;
+      e.vy += gravity();
       e.y += e.vy;
       e.spin += 0.3 * Math.sign(e.vx);
       if (e.y > H + 100) e.gone = true;
       continue;
     }
 
-    if (e.kind === "jump" && e.onGround && --e.jumpTimer <= 0) {
-      e.vy = -10;
-      e.jumpTimer = 90 + Math.random() * 60;
+    if (e.kind === "fish") {
+      // ミニザメ：地面に関係なく、生まれた場所の左右を波打ちながら泳いで行き来する
+      const range = 2.5 * T;
+      e.x += e.facing * 1.4;
+      if (Math.abs(e.x - e.homeX) > range) {
+        e.x = e.homeX + Math.sign(e.x - e.homeX) * range;
+        e.facing = -e.facing;
+      }
+      e.y = e.baseY + Math.sin(e.t * 0.05) * 14;
+    } else {
+      if (e.kind === "jump" && e.onGround && --e.jumpTimer <= 0) {
+        e.vy = -10 * jumpScale();
+        e.jumpTimer = 90 + Math.random() * 60;
+      }
+      e.vx = e.facing * (e.kind === "jump" ? 1.2 : 1);
+      if (moveEntity(e)) e.facing = -e.facing;
+      else if (e.onGround && !groundAhead(e)) e.facing = -e.facing; // 崖の手前で引き返す
     }
-    e.vx = e.facing * (e.kind === "jump" ? 1.2 : 1);
-    if (moveEntity(e)) e.facing = -e.facing;
-    else if (e.onGround && !groundAhead(e)) e.facing = -e.facing; // 崖の手前で引き返す
     if (e.y > H + 40) {
       e.gone = true;
       continue;
@@ -667,7 +776,7 @@ function updateEnemies() {
     } else if (overlap(p, e)) {
       if (isStomp(p, e)) {
         defeatEnemy(e, Math.sign(e.x - p.x) || 1);
-        p.vy = holdJump() ? -12 : -8;
+        p.vy = (holdJump() ? -12 : -8) * jumpScale();
         p.jumpCut = true;
         Sound.stomp();
       } else {
@@ -688,7 +797,7 @@ function groundAhead(e) {
 function defeatEnemy(e, dir) {
   e.dead = true;
   e.vx = dir * 6;
-  e.vy = -7;
+  e.vy = -7 * jumpScale();
   addScore(100, e.x + e.w / 2, e.y);
   burst(e.x + e.w / 2, e.y + e.h / 2, "#ffffff", 12);
   burst(e.x + e.w / 2, e.y + e.h / 2, "#ffd166", 6);
@@ -741,7 +850,7 @@ function hurt(fromX) {
   p.hurtTimer = 16;
   p.punch = 0;
   p.vx = (p.x + p.w / 2 < fromX ? -1 : 1) * 5;
-  p.vy = -6;
+  p.vy = -6 * jumpScale();
 }
 
 // ミス：その場で飛び上がって画面の下へ落ちていく（穴に落ちたときはそのまま）
@@ -752,7 +861,7 @@ function miss(fell) {
   hp = 0;
   lives--;
   player.vx = 0;
-  player.vy = fell ? 0 : -10;
+  player.vy = fell ? 0 : -10 * jumpScale();
   player.punch = 0;
   Sound.stopMusic();
   Sound.miss();
@@ -762,7 +871,7 @@ function updateMiss() {
   stateTimer++;
   const p = player;
   if (stateTimer > 25) {
-    p.vy += GRAVITY * 0.8;
+    p.vy += gravity() * 0.8;
     p.y += p.vy;
   }
   if (stateTimer >= 150) {
@@ -784,22 +893,41 @@ function updateCamera() {
   camX += (target - camX) * 0.08;
 }
 
-// ---- ボス：1 面は大きなシロクマ、2 面は大きなパンダ ----
-// ボス部屋に入ると登場。歩く・大ジャンプ（着地で衝撃波）・投げる（雪玉／タケノコ）をくり返す。
-// パンダはさらに、丸まって部屋の端から端まで転がってくる。体力が半分を切ると怒って速くなる
+// ---- ボス：1 面は大きなシロクマ、2 面は大きなパンダ、3 面は大きなサメ ----
+// ボス部屋に入ると登場。シロクマとパンダは歩く・大ジャンプ（着地で衝撃波）・投げる（雪玉／タケノコ）をくり返す。
+// パンダはさらに、丸まって部屋の端から端まで転がってくる。
+// サメは水の中を泳ぎ回り、突進・急降下（海底に着くと衝撃波）・泡はきをくり返す。体力が半分を切ると怒って速くなる
+const SHARK_W = 140;
+const SHARK_H = 64;
+const SHARK_FLOOR_Y = GROUND_Y - SHARK_H; // サメが海底に着いたときの y
+const SHARK_HOVER_Y = SHARK_FLOOR_Y - 110; // ふだん泳いでいる高さ
+const SHARK_TOP_Y = 70; // 急降下の前にのぼる高さ
+const sharkMinX = () => ARENA_X + 10;
+const sharkMaxX = () => ARENA_X + W - T - SHARK_W - 10;
+
 function startBoss() {
   bossPhase = "fight";
   warningTimer = 150;
   Sound.playMusic("boss");
   Sound.warning();
+  const shark = stage === 3;
   boss = {
-    x: ARENA_X + W - 200, y: -220, w: 92, h: 108, vx: 0, vy: 0,
+    // サメは右の画面の外から泳いでくる。シロクマとパンダは上から落ちてくる
+    x: shark ? ARENA_X + W + 20 : ARENA_X + W - 200,
+    y: shark ? SHARK_HOVER_Y : -220,
+    w: shark ? SHARK_W : 92, h: shark ? SHARK_H : 108, vx: 0, vy: 0,
     hp: STAGES[stage].bossHp, maxHp: STAGES[stage].bossHp, state: "enter", t: 0, facing: -1, invincible: 0,
-    onGround: false, last: "", angryShown: false, stun: 0, bounces: 0,
+    onGround: false, last: "", angryShown: false, stun: 0, bounces: 0, landed: 0,
   };
 }
 
 const bossAngry = () => boss.hp <= boss.maxHp / 2;
+
+// ボスの当たり判定（絵より少し小さめ）
+function bossBody(b) {
+  if (stage === 3) return { x: b.x + 14, y: b.y + 8, w: b.w - 28, h: b.h - 12 };
+  return { x: b.x + 8, y: b.y + 10, w: b.w - 16, h: b.h - 10 };
+}
 
 function setBossState(name) {
   boss.state = name;
@@ -807,7 +935,11 @@ function setBossState(name) {
 }
 
 function nextBossAction() {
-  const moves = stage === 2 ? ["walk", "crouch", "throw", "roll"] : ["walk", "crouch", "throw"];
+  const moves = {
+    1: ["walk", "crouch", "throw"],
+    2: ["walk", "crouch", "throw", "roll"],
+    3: ["dash", "dive", "bubble"],
+  }[stage];
   const choices = moves.filter((c) => c !== boss.last); // 同じ技を続けない
   const next = choices[Math.floor(Math.random() * choices.length)];
   boss.last = next;
@@ -826,7 +958,8 @@ function updateBoss() {
 
   if (b.state === "down") {
     b.vx = 0;
-    moveEntity(b);
+    if (stage === 3) b.y += (90 - b.y) * 0.02; // サメはおなかを上にして、ぷかぷか浮かんでいく
+    else moveEntity(b);
     if (b.t % 10 === 0 && b.t < 100) {
       burst(b.x + rand(0, b.w), b.y + rand(0, b.h), b.t % 20 ? "#ffffff" : "#e63946", 14, 5);
     }
@@ -840,6 +973,37 @@ function updateBoss() {
     popups.push({ x: b.x + b.w / 2, y: b.y - 20, text: "おこった！", life: 70 });
   }
   const toPlayer = p.x + p.w / 2 < b.x + b.w / 2 ? -1 : 1;
+  if (stage === 3) updateShark(b, angry, toPlayer);
+  else updateLandBoss(b, angry, toPlayer);
+
+  if (state !== "playing") return;
+  const fist = punchHitbox();
+  const beam = laserHitbox();
+  const body = bossBody(b);
+  // レーザーは 1 回の発射につき 1 度だけ、ボスの無敵時間に関係なく当たる
+  if (beam && !p.laserHitBoss && overlap(beam, body)) {
+    p.laserHitBoss = true;
+    damageBoss(LASER_BOSS_DAMAGE);
+    return;
+  }
+  if (fist && b.invincible === 0 && overlap(fist, body)) damageBoss();
+  else if (overlap(p, body)) {
+    if (isStomp(p, body)) {
+      if (b.invincible === 0) damageBoss();
+      if (b.stun === 0 && bossPhase === "fight") stunBoss(); // 目を回している間に踏んでも延長しない
+      p.vy = -11 * jumpScale();
+      p.vx = (p.x + p.w / 2 < b.x + b.w / 2 ? -1 : 1) * 4;
+      p.hurtTimer = 10;
+      p.jumpCut = true;
+    } else {
+      hurt(b.x + b.w / 2);
+    }
+  }
+}
+
+// 1 面・2 面のボス（地面の上で戦う）
+function updateLandBoss(b, angry, toPlayer) {
+  const p = player;
   const wasOnGround = b.onGround;
 
   // 踏まれて目を回している間は動けない（空中なら落ちるだけ）
@@ -908,43 +1072,126 @@ function updateBoss() {
     shake = 18;
     Sound.stomp(true);
     for (let i = 0; i < 3; i++) dust(b.x + rand(0, b.w), b.y + b.h);
-    if (b.state === "air" && b.stun === 0) {
-      const speed = angry ? 6.5 : 5;
-      waves.push({ x: b.x - 4, y: b.y + b.h, dir: -1, speed });
-      waves.push({ x: b.x + b.w + 4, y: b.y + b.h, dir: 1, speed });
-    }
+    if (b.state === "air" && b.stun === 0) shockwaves(b, angry);
     setBossState("idle");
   }
+}
 
-  if (state !== "playing") return;
-  const fist = punchHitbox();
-  const beam = laserHitbox();
-  const body = { x: b.x + 8, y: b.y + 10, w: b.w - 16, h: b.h - 10 };
-  // レーザーは 1 回の発射につき 1 度だけ、ボスの無敵時間に関係なく当たる
-  if (beam && !p.laserHitBoss && overlap(beam, body)) {
-    p.laserHitBoss = true;
-    damageBoss(LASER_BOSS_DAMAGE);
+// ボスの左右に衝撃波を走らせる
+function shockwaves(b, angry) {
+  const speed = angry ? 6.5 : 5;
+  waves.push({ x: b.x - 4, y: b.y + b.h, dir: -1, speed });
+  waves.push({ x: b.x + b.w + 4, y: b.y + b.h, dir: 1, speed });
+}
+
+// 3 面のボス：サメ。重力に関係なく泳ぎ回る。踏まれると目を回して海底に沈む
+function updateShark(b, angry, toPlayer) {
+  const p = player;
+  const minX = sharkMinX();
+  const maxX = sharkMaxX();
+  const bob = Math.sin(frame * 0.08) * 0.6; // ふだんは少し上下にゆれながら泳ぐ
+  if (frame % 14 === 0) bubbleFx(b.x + b.w / 2 - b.facing * 60, b.y + 20);
+
+  if (b.stun > 0) {
+    b.stun--;
+    b.t = 0;
+    b.vy = Math.min(b.vy + WATER_GRAVITY, WATER_MAX_FALL);
+    b.y = Math.min(b.y + b.vy, SHARK_FLOOR_Y);
     return;
   }
-  if (fist && b.invincible === 0 && overlap(fist, body)) damageBoss();
-  else if (overlap(p, body)) {
-    if (isStomp(p, body)) {
-      if (b.invincible === 0) damageBoss();
-      if (b.stun === 0 && bossPhase === "fight") stunBoss(); // 目を回している間に踏んでも延長しない
-      p.vy = -11;
-      p.vx = (p.x + p.w / 2 < b.x + b.w / 2 ? -1 : 1) * 4;
-      p.hurtTimer = 10;
-      p.jumpCut = true;
-    } else {
-      hurt(b.x + b.w / 2);
+
+  switch (b.state) {
+    case "enter": // 右の画面の外から泳いでくる
+      b.facing = -1;
+      b.x -= 3;
+      if (b.x <= maxX) setBossState("idle");
+      return; // 入ってくるまでは部屋の範囲に収めない
+    case "idle":
+      b.facing = toPlayer;
+      b.y += (SHARK_HOVER_Y - b.y) * 0.05 + bob;
+      if (b.t > (angry ? 25 : 45)) nextBossAction();
+      break;
+    case "dash": {
+      // 体をふるわせながらプレイヤーの高さに合わせてため、そのあとまっすぐ突進。壁に着いたら止まる
+      const charge = angry ? 30 : 42;
+      if (b.t <= charge) {
+        b.facing = toPlayer;
+        const targetY = clamp(p.y + p.h / 2 - b.h / 2, SHARK_TOP_Y, SHARK_FLOOR_Y);
+        b.y += (targetY - b.y) * 0.08;
+      } else {
+        b.x += b.facing * (angry ? 10 : 8);
+        if (b.x <= minX || b.x >= maxX) {
+          shake = 10;
+          Sound.stomp(true);
+          setBossState("idle");
+        }
+      }
+      break;
+    }
+    case "dive": {
+      // 上にのぼってプレイヤーの真上へ → 少し止まる → 真下へ急降下。海底に着くと左右に衝撃波
+      const rise = 50;
+      const hold = angry ? 10 : 18;
+      if (b.t === 1) {
+        b.vy = 0;
+        b.landed = 0;
+      }
+      if (b.t <= rise) {
+        b.facing = toPlayer;
+        b.x += (clamp(p.x + p.w / 2 - b.w / 2, minX, maxX) - b.x) * 0.06;
+        b.y += (SHARK_TOP_Y - b.y) * 0.08;
+      } else if (b.t > rise + hold && !b.landed) {
+        b.vy = Math.min(b.vy + 0.8, angry ? 12 : 10);
+        b.y += b.vy;
+        if (b.y >= SHARK_FLOOR_Y) {
+          b.y = SHARK_FLOOR_Y;
+          b.vy = 0;
+          b.landed = b.t;
+          shake = 18;
+          Sound.stomp(true);
+          for (let i = 0; i < 3; i++) dust(b.x + rand(0, b.w), GROUND_Y);
+          shockwaves(b, angry);
+        }
+      } else if (b.landed && b.t > b.landed + (angry ? 30 : 45)) {
+        setBossState("idle"); // 海底で少し止まるので、そのすきに踏んだりパンチしたりできる
+      }
+      break;
+    }
+    case "bubble": {
+      // 口から泡をはく。泡はまっすぐ飛んでくるので、パンチやレーザーで割れる
+      b.facing = toPlayer;
+      b.y += (SHARK_HOVER_Y - b.y) * 0.05 + bob;
+      const shootAt = angry ? [20, 34, 48] : [24, 46];
+      if (shootAt.includes(b.t)) shootBubble(angry ? 3.8 : 3);
+      if (b.t > (angry ? 70 : 66)) setBossState("idle");
+      break;
     }
   }
+  b.x = clamp(b.x, minX, maxX);
+  b.y = clamp(b.y, SHARK_TOP_Y - 10, SHARK_FLOOR_Y);
+}
+
+function shootBubble(speed) {
+  const b = boss;
+  const p = player;
+  const sx = b.x + b.w / 2 + b.facing * 66;
+  const sy = b.y + b.h - 22;
+  const dx = p.x + p.w / 2 - sx;
+  const dy = p.y + p.h / 2 - sy;
+  const len = Math.hypot(dx, dy) || 1;
+  snowballs.push({ x: sx, y: sy, r: 13, g: 0, kind: "bubble", vx: (dx / len) * speed, vy: (dy / len) * speed });
+  Sound.bubble();
 }
 
 function stunBoss() {
   const b = boss;
   b.stun = BOSS_STUN;
-  if (b.onGround) setBossState("idle");
+  if (stage === 3) {
+    setBossState("idle"); // サメは泳ぐのをやめて海底へ沈む
+    b.vy = 0;
+  } else if (b.onGround) {
+    setBossState("idle");
+  }
   popups.push({ x: b.x + b.w / 2, y: b.y - 20, text: "ピヨピヨ…", life: 60 });
 }
 
@@ -1008,7 +1255,7 @@ function updateProjectiles() {
     s.y += s.vy;
     const box = { x: s.x - s.r, y: s.y - s.r, w: s.r * 2, h: s.r * 2 };
     if ((fist && overlap(fist, box)) || (beam && overlap(beam, box))) {
-      // 雪玉はパンチやレーザーで壊せる
+      // 雪玉・タケノコ・泡はパンチやレーザーで壊せる
       s.gone = true;
       burst(s.x, s.y, projColor(s), 10, 3);
       addScore(50, s.x, s.y);
@@ -1017,7 +1264,10 @@ function updateProjectiles() {
       s.gone = true;
       burst(s.x, s.y, projColor(s), 10, 3);
       hurt(s.x);
-    } else if (tileAt(Math.floor(s.x / T), Math.floor((s.y + s.r) / T)) === "#" || s.y > H || s.x < ARENA_X - 30) {
+    } else if (
+      tileAt(Math.floor(s.x / T), Math.floor((s.y + s.r) / T)) === "#" ||
+      s.y > H || s.y < -30 || s.x < ARENA_X - 30 || s.x > ARENA_X + W + 30
+    ) {
       s.gone = true;
       burst(s.x, s.y, projColor(s), 8, 2);
     }
@@ -1039,13 +1289,18 @@ function updateProjectiles() {
   waves = waves.filter((w) => !w.gone);
 }
 
-const projColor = (s) => (s.kind === "takenoko" ? "#d39a55" : "#ffffff");
+const projColor = (s) => ({ takenoko: "#d39a55", bubble: "#bfe9ff" })[s.kind] || "#ffffff";
 
 function updateParticles() {
   for (const q of particles) {
     q.x += q.vx;
     q.y += q.vy;
-    q.vy += 0.15;
+    if (q.bubble) {
+      q.vy = Math.max(q.vy - 0.02, -1.6);
+      q.x += Math.sin((q.life + q.size * 10) * 0.15) * 0.3;
+    } else {
+      q.vy += 0.15;
+    }
     q.life--;
   }
   particles = particles.filter((q) => q.life > 0);
@@ -1133,6 +1388,8 @@ function draw() {
   for (const s of snowballs) {
     if (s.kind === "takenoko") {
       drawTakenoko(s.x, s.y, s.r, frame * 0.25);
+    } else if (s.kind === "bubble") {
+      drawBigBubble(s.x, s.y, s.r);
     } else {
       circle(s.x, s.y, s.r, "#ffffff", "#9fb6cc");
       circle(s.x - 3, s.y - 3, 3, "#e8f2ff");
@@ -1144,8 +1401,17 @@ function draw() {
   }
   for (const q of particles) {
     ctx.globalAlpha = Math.max(0, q.life / q.max);
-    ctx.fillStyle = q.color;
-    ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);
+    if (q.bubble) {
+      ctx.beginPath();
+      ctx.arc(q.x, q.y, q.size, 0, Math.PI * 2);
+      ctx.strokeStyle = q.color;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      circle(q.x - q.size * 0.35, q.y - q.size * 0.35, q.size * 0.3, "rgba(255,255,255,0.8)");
+    } else {
+      ctx.fillStyle = q.color;
+      ctx.fillRect(q.x - q.size / 2, q.y - q.size / 2, q.size, q.size);
+    }
   }
   ctx.globalAlpha = 1;
   for (const q of popups) {
@@ -1159,8 +1425,12 @@ function draw() {
   drawOverlay();
 }
 
-// 背景：空・雲・遠くの山・森の木（2 面は竹）。奥ほどゆっくり動いて奥行きを出す
+// 背景：空・雲・遠くの山・森の木（2 面は竹、3 面は海の中）。奥ほどゆっくり動いて奥行きを出す
 function drawBackground(cx) {
+  if (inWater()) {
+    drawSea(cx);
+    return;
+  }
   const bamboo = stage === 2;
   const sky = ctx.createLinearGradient(0, 0, 0, H);
   sky.addColorStop(0, bamboo ? "#9fd8c8" : "#74c3ef");
@@ -1186,20 +1456,8 @@ function drawBackground(cx) {
   }
 
   // 遠くの山
-  const hills = (offset, base, amp, color) => {
-    ctx.beginPath();
-    ctx.moveTo(-20, H);
-    for (let x = -20; x <= W + 20; x += 20) {
-      const wx = x + offset;
-      ctx.lineTo(x, base + Math.sin(wx * 0.005) * amp + Math.sin(wx * 0.013) * amp * 0.4);
-    }
-    ctx.lineTo(W + 20, H);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
-  };
-  hills(cx * 0.2, 280, 40, bamboo ? "#9cc9a0" : "#a8d8b0");
-  hills(cx * 0.32 + 900, 320, 30, bamboo ? "#79b385" : "#86c493");
+  drawHills(cx * 0.2, 280, 40, bamboo ? "#9cc9a0" : "#a8d8b0");
+  drawHills(cx * 0.32 + 900, 320, 30, bamboo ? "#79b385" : "#86c493");
 
   if (bamboo) {
     drawBambooGrove(cx * 0.35, 70, 8, "#8cc78a", "#76b174");
@@ -1223,6 +1481,129 @@ function drawBackground(cx) {
     circle(x + r * 0.6, GROUND_Y - h + r * 0.4, r * 0.7, leaf);
     circle(x - r * 0.3, GROUND_Y - h - r * 0.3, r * 0.35, "rgba(255,255,255,0.12)");
   }
+}
+
+// なだらかな山（3 面では海の底の岩山）
+function drawHills(offset, base, amp, color) {
+  ctx.beginPath();
+  ctx.moveTo(-20, H);
+  for (let x = -20; x <= W + 20; x += 20) {
+    const wx = x + offset;
+    ctx.lineTo(x, base + Math.sin(wx * 0.005) * amp + Math.sin(wx * 0.013) * amp * 0.4);
+  }
+  ctx.lineTo(W + 20, H);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+// 3 面の背景：海の中。水面のゆらめき・差しこむ光・遠くの岩山・ゆれる海藻とサンゴ・のぼっていく泡
+function drawSea(cx) {
+  const sea = ctx.createLinearGradient(0, 0, 0, H);
+  sea.addColorStop(0, "#4fb3e0");
+  sea.addColorStop(0.55, "#2278b3");
+  sea.addColorStop(1, "#155386");
+  ctx.fillStyle = sea;
+  ctx.fillRect(-20, -20, W + 40, H + 40);
+
+  // 水面のゆらめき
+  ctx.beginPath();
+  ctx.moveTo(-20, -20);
+  for (let x = -20; x <= W + 20; x += 16) {
+    ctx.lineTo(x, 10 + Math.sin((x + cx * 0.3) * 0.03 + frame * 0.05) * 4);
+  }
+  ctx.lineTo(W + 20, -20);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(220, 245, 255, 0.55)";
+  ctx.fill();
+
+  // 水面から差しこむ光の帯
+  const rayGap = 260;
+  const rayOffset = cx * 0.1;
+  for (let k = Math.floor(rayOffset / rayGap) - 1; k < Math.floor(rayOffset / rayGap) + 5; k++) {
+    const x = k * rayGap - rayOffset + hash(k + 31) * 80;
+    const w = 40 + hash(k + 37) * 50;
+    const a = 0.07 + Math.sin(frame * 0.02 + k) * 0.03;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x + w, 0);
+    ctx.lineTo(x + w + 120, H);
+    ctx.lineTo(x + 60, H);
+    ctx.closePath();
+    ctx.fillStyle = `rgba(255, 255, 230, ${a})`;
+    ctx.fill();
+  }
+
+  // 遠くの岩山
+  drawHills(cx * 0.2, 300, 45, "#1d6496");
+  drawHills(cx * 0.32 + 900, 345, 30, "#185782");
+
+  // 海藻とサンゴ
+  const weedGap = 95;
+  const weedOffset = cx * 0.5;
+  for (let k = Math.floor(weedOffset / weedGap) - 1; k < Math.floor(weedOffset / weedGap) + W / weedGap + 2; k++) {
+    const x = k * weedGap - weedOffset + hash(k + 41) * 40;
+    if (hash(k + 43) > 0.7) {
+      drawCoral(x, GROUND_Y, hash(k + 47) > 0.5 ? "#ff8fa3" : "#ffb86b");
+      continue;
+    }
+    const h = 90 + hash(k + 53) * 110;
+    const color = hash(k + 59) > 0.5 ? "#2f9e6e" : "#3cb47c";
+    for (let j = 0; j < 2; j++) {
+      const bx = x + j * 10;
+      ctx.beginPath();
+      ctx.moveTo(bx, GROUND_Y);
+      for (let y = 0; y <= h; y += 10) {
+        const sway = Math.sin(frame * 0.03 + y * 0.04 + k + j) * (y / h) * 12;
+        ctx.lineTo(bx + sway + Math.sin(y * 0.15 + j) * 3, GROUND_Y - y);
+      }
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 7 - j * 2;
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+  }
+
+  // のぼっていく泡
+  for (let i = 0; i < 16; i++) {
+    const x = (((hash(i + 61) * 1400 - cx * 0.4) % W) + W) % W;
+    const y = H + 20 - ((frame * (0.4 + hash(i + 67) * 0.5) + hash(i + 71) * H) % (H + 40));
+    const r = 2 + hash(i + 73) * 4;
+    ctx.beginPath();
+    ctx.arc(x + Math.sin(frame * 0.05 + i) * 3, y, r, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(220, 245, 255, 0.5)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+}
+
+// 枝分かれしたサンゴ
+function drawCoral(x, y, color) {
+  const branch = (bx, by, len, ang, depth) => {
+    const ex = bx + Math.cos(ang) * len;
+    const ey = by + Math.sin(ang) * len;
+    line(bx, by, ex, ey, color, 3 + depth * 2);
+    if (depth > 0) {
+      branch(ex, ey, len * 0.7, ang - 0.5, depth - 1);
+      branch(ex, ey, len * 0.7, ang + 0.5, depth - 1);
+    } else {
+      circle(ex, ey, 3, color);
+    }
+  };
+  branch(x, y, 26, -Math.PI / 2, 2);
+}
+
+// ボスのサメがはく大きな泡
+function drawBigBubble(x, y, r) {
+  const wob = Math.sin(frame * 0.3 + x * 0.05) * 1.5;
+  ctx.beginPath();
+  ctx.ellipse(x, y, r + wob, r - wob, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(190, 235, 255, 0.35)";
+  ctx.fill();
+  ctx.strokeStyle = "#e6f8ff";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  circle(x - r * 0.35, y - r * 0.35, r * 0.25, "rgba(255,255,255,0.85)");
 }
 
 // 竹の林。offset：スクロール量、gap：竹の間隔、w：太さ
@@ -1266,7 +1647,24 @@ function drawTiles() {
       const t = level.tiles[r][c];
       const x = c * T;
       const y = r * T;
-      if (t === "#") {
+      if (t === "#" && inWater()) {
+        // 海の底の砂
+        ctx.fillStyle = "#d8b878";
+        ctx.fillRect(x, y, T, T);
+        ctx.fillStyle = "#bf9b5c";
+        ctx.fillRect(x + 6 + hash(c * 13 + r) * 22, y + 14 + hash(c + r * 7) * 18, 5, 3);
+        ctx.fillRect(x + 4 + hash(c * 5 + r * 3) * 26, y + 8 + hash(c * 3 + r) * 24, 3, 3);
+        if (tileAt(c, r - 1) !== "#") {
+          ctx.fillStyle = "#f0d9a0";
+          ctx.fillRect(x, y, T, 8);
+          for (let i = 0; i < 4; i++) circle(x + 5 + i * 10, y + 8, 4, "#f0d9a0");
+          if (hash(c * 7 + r) > 0.8) {
+            // ときどき貝がら
+            oval(x + 20, y + 5, 6, 4, "#ffd0dc", "#d68aa0");
+            line(x + 20, y + 1.5, x + 20, y + 8.5, "#d68aa0", 1);
+          }
+        }
+      } else if (t === "#") {
         ctx.fillStyle = "#8b5a2b";
         ctx.fillRect(x, y, T, T);
         // 土のつぶつぶ
@@ -1281,6 +1679,15 @@ function drawTiles() {
           ctx.fillStyle = "#86d986";
           ctx.fillRect(x, y, T, 3);
         }
+      } else if (t === "-" && inWater()) {
+        // 岩の足場（上にサンゴ）
+        ctx.fillStyle = "#6f7f99";
+        ctx.beginPath();
+        ctx.roundRect(x, y, T, 15, 5);
+        ctx.fill();
+        ctx.fillStyle = "#93a3bd";
+        ctx.fillRect(x + 3, y + 2, T - 6, 3);
+        circle(x + 10 + hash(c) * 20, y + 1, 3.5, hash(c + 3) > 0.5 ? "#ff8fa3" : "#ffb86b");
       } else if (t === "-" && stage === 2) {
         // 竹の足場
         ctx.fillStyle = "#6dbb5a";
@@ -1365,16 +1772,17 @@ function drawWaves() {
     ctx.moveTo(w.x - 14, w.y);
     ctx.quadraticCurveTo(w.x - w.dir * 4, w.y - h * 1.4, w.x + w.dir * 12, w.y);
     ctx.closePath();
-    ctx.fillStyle = "rgba(255,255,255,0.9)";
+    ctx.fillStyle = inWater() ? "rgba(240, 217, 160, 0.9)" : "rgba(255,255,255,0.9)"; // 水の中では砂けむり
     ctx.fill();
-    ctx.strokeStyle = "#9fb6cc";
+    ctx.strokeStyle = inWater() ? "#bf9b5c" : "#9fb6cc";
     ctx.lineWidth = 2;
     ctx.stroke();
   }
 }
 
 // 主人公：茶色のクマ（赤いボクシンググローブでパンチ）。原点は足元の中心、右向きで描く
-function drawKuma({ walk = 0, air = false, punch = 0, laser = false, dizzy = false } = {}) {
+// tank：背中に酸素ボンベを背負う（3 面だけ。見た目だけで、ゲームの動きには関係しない）
+function drawKuma({ walk = 0, air = false, punch = 0, laser = false, dizzy = false, tank = false } = {}) {
   const fur = "#9a6234";
   const dark = "#7a4a26";
   const light = "#f1d9b5";
@@ -1384,11 +1792,33 @@ function drawKuma({ walk = 0, air = false, punch = 0, laser = false, dizzy = fal
   // 足
   oval(-6 + (air ? -2 : step), -4, 6, 4.5, dark);
   oval(6 + (air ? 3 : -step), -4, 6, 4.5, dark);
+  // 酸素ボンベ（体の後ろ）
+  if (tank) {
+    ctx.fillStyle = "#555";
+    ctx.fillRect(-16.5, -40, 5, 5); // バルブ
+    ctx.fillRect(-18.5, -41, 9, 2.5);
+    ctx.beginPath();
+    ctx.roundRect(-21, -36, 14, 28, 6);
+    ctx.fillStyle = "#ffb703";
+    ctx.fill();
+    ctx.strokeStyle = "#c27c00";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.fillRect(-18.5, -32, 2.5, 18); // つや
+    ctx.fillStyle = "#c27c00";
+    ctx.fillRect(-21, -24, 14, 2.5); // 帯
+  }
   // 奥の腕（グローブ）
   circle(-10, -18, 5, "#b02a35");
   // 体
   oval(0, -15, 12, 11, fur);
   oval(3, -14, 6.5, 7, light);
+  if (tank) {
+    // ボンベを留める肩ベルト
+    line(-9, -24, 6, -8, "#2b3a4a", 2.5);
+    line(-11, -12, -5, -10, "#2b3a4a", 2.5);
+  }
   // 頭
   const headY = -31 - Math.abs(Math.sin(walk)) * 1.5;
   circle(-7, headY - 10, 5.5, fur);
@@ -1408,6 +1838,34 @@ function drawKuma({ walk = 0, air = false, punch = 0, laser = false, dizzy = fal
     circle(9.6, headY - 3.7, 0.7, "#fff");
   }
   circle(-2, headY + 4, 2.4, "rgba(240, 120, 120, 0.55)"); // ほっぺ
+
+  // 宇宙服のような丸いガラスのヘルメット（3 面だけ。ボンベからホースがつながっている）
+  if (tank) {
+    ctx.beginPath();
+    ctx.moveTo(-14, -40);
+    ctx.quadraticCurveTo(-22, headY - 6, -14, headY + 12);
+    ctx.strokeStyle = "#2b3a4a";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    circle(1, headY - 3, 19, "rgba(200, 235, 255, 0.22)");
+    ctx.strokeStyle = "rgba(235, 250, 255, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // ガラスのつや
+    ctx.beginPath();
+    ctx.arc(1, headY - 3, 14, Math.PI * 1.1, Math.PI * 1.45);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    // 首のところの金属のリング
+    ctx.beginPath();
+    ctx.roundRect(-13, headY + 13, 28, 6, 3);
+    ctx.fillStyle = "#b8c4d0";
+    ctx.fill();
+    ctx.strokeStyle = "#6d7b8a";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
 
   // 手前の腕。パンチ中は前に突き出す。レーザー中は両手を前にそろえる
   if (laser) {
@@ -1439,6 +1897,7 @@ function drawPlayer() {
   drawKuma({
     walk: p.walk, air: !p.onGround, punch: p.punch, laser: p.laser > 0,
     dizzy: state === "miss" || state === "gameover",
+    tank: inWater(),
   });
   ctx.restore();
 }
@@ -1565,6 +2024,215 @@ function drawMiniPanda({ t = 0, walking = true, dead = false } = {}) {
   }
 }
 
+// 3 面の雑魚：カニ（歩く）。原点は足元の中心
+function drawCrab({ t = 0, walking = true, dead = false } = {}) {
+  const red = "#e8553f";
+  const dark = "#a8331f";
+  const step = walking ? Math.sin(t * 0.4) * 2 : 0;
+  // 足（左右に 3 本ずつ）
+  for (let i = 0; i < 3; i++) {
+    const lx = 5 + i * 4;
+    const s = i % 2 ? step : -step;
+    line(-lx, -9, -lx - 6, -1 + s, dark, 2);
+    line(lx, -9, lx + 6, -1 - s, dark, 2);
+  }
+  // はさみ（ときどき開いたり閉じたりする）
+  const snap = Math.sin(t * 0.2) > 0 ? 4 : 1.5;
+  for (const side of [-1, 1]) {
+    line(side * 10, -13, side * 15, -19, red, 3);
+    circle(side * 16, -22, 5.5, red, dark);
+    ctx.beginPath();
+    ctx.moveTo(side * 16, -22);
+    ctx.lineTo(side * 21, -25 - snap);
+    ctx.lineTo(side * 21, -25 + snap);
+    ctx.closePath();
+    ctx.fillStyle = "#1c6aa0"; // すき間から見える海の色
+    ctx.fill();
+  }
+  // 体と目
+  oval(0, -12, 14, 8, red, dark);
+  oval(-3, -14, 5, 2.5, "rgba(255,255,255,0.35)");
+  line(-4, -18, -5, -24, dark, 2);
+  line(4, -18, 5, -24, dark, 2);
+  for (const ex of [-5, 5]) {
+    circle(ex, -26, 3.2, "#fff", dark);
+    if (dead) xEye(ex, -26, 1.8);
+    else circle(ex + 1, -26, 1.6, "#111");
+  }
+}
+
+// 3 面の雑魚：クラゲ（ふわふわ跳ねる）。原点は足元の中心
+function drawJellyfish({ t = 0, dead = false } = {}) {
+  const pulse = Math.sin(t * 0.15);
+  // 足
+  for (let i = 0; i < 4; i++) {
+    const x = -8 + i * 5.3;
+    ctx.beginPath();
+    ctx.moveTo(x, -16);
+    for (let y = -16; y <= -1; y += 3) ctx.lineTo(x + Math.sin(t * 0.2 + y * 0.4 + i) * 2.5, y);
+    ctx.strokeStyle = "rgba(255, 170, 215, 0.9)";
+    ctx.lineWidth = 2;
+    ctx.lineCap = "round";
+    ctx.stroke();
+  }
+  // かさ
+  ctx.beginPath();
+  ctx.ellipse(0, -16, 14 + pulse, 13 - pulse, 0, Math.PI, 0);
+  ctx.closePath();
+  ctx.fillStyle = "rgba(255, 160, 210, 0.85)";
+  ctx.fill();
+  ctx.strokeStyle = "#d0679a";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  oval(-5, -24, 4, 2.5, "rgba(255,255,255,0.6)");
+  if (dead) {
+    xEye(-4, -20, 1.8);
+    xEye(4, -20, 1.8);
+  } else {
+    circle(-4, -20, 1.6, "#222");
+    circle(4, -20, 1.6, "#222");
+    oval(0, -17, 2, 1.2, "#d0679a");
+  }
+}
+
+// 3 面の雑魚：ミニザメ（宙を泳ぐ）。原点は下の中心、右向きで描く
+function drawMiniShark({ t = 0, dead = false } = {}) {
+  const top = "#7d98b3";
+  const edge = "#4f6a85";
+  const sway = Math.sin(t * 0.3) * 3;
+  ctx.beginPath(); // 尾びれ
+  ctx.moveTo(-13, -10);
+  ctx.lineTo(-22, -19 + sway);
+  ctx.lineTo(-19, -10);
+  ctx.lineTo(-22, -1 + sway);
+  ctx.closePath();
+  ctx.fillStyle = top;
+  ctx.fill();
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.beginPath(); // 背びれ
+  ctx.moveTo(-4, -16);
+  ctx.lineTo(1, -25);
+  ctx.lineTo(6, -16);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  oval(0, -10, 16, 8, top, edge);
+  oval(3, -6, 11, 3.5, "#f2f6fa");
+  line(-2, -6, -8, -1, edge, 2); // 胸びれ
+  if (dead) {
+    xEye(9, -12, 1.8);
+  } else {
+    circle(9, -12, 2.4, "#fff");
+    circle(9.8, -12, 1.3, "#111");
+    line(6, -16.5, 12, -14.5, "#1e2f40", 1); // 怒りまゆげ
+  }
+  line(9, -5.5, 15, -7, "#1e2f40", 1.3);
+}
+
+// 3 面のボス：大きなサメ。原点は下の中心、右向きで描く。open で口を大きく開ける
+function drawShark({ t = 0, angry = false, down = false, open = false } = {}) {
+  const top = "#5f84a8";
+  const edge = "#3d5a78";
+  const belly = "#eef4f8";
+  const sway = Math.sin(t * (angry ? 0.4 : 0.25)) * 6;
+  const fill = (color) => {
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  };
+
+  // 尾びれ
+  ctx.beginPath();
+  ctx.moveTo(-54, -36);
+  ctx.lineTo(-88, -70 + sway);
+  ctx.quadraticCurveTo(-74, -38, -84, -6 + sway);
+  ctx.closePath();
+  fill(top);
+  // 背びれ
+  ctx.beginPath();
+  ctx.moveTo(-18, -54);
+  ctx.quadraticCurveTo(-8, -80, 10, -88);
+  ctx.quadraticCurveTo(4, -70, 16, -56);
+  ctx.closePath();
+  fill(top);
+
+  // 体（おなかは白い）
+  oval(0, -32, 64, 26, top);
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, -32, 64, 26, 0, 0, Math.PI * 2);
+  ctx.clip();
+  oval(10, -10, 62, 18, belly);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.ellipse(0, -32, 64, 26, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  oval(-6, -48, 30, 5, "rgba(255,255,255,0.18)"); // 背中のつや
+
+  // えらと胸びれ
+  for (let i = 0; i < 3; i++) line(18 + i * 6, -42, 15 + i * 6, -28, edge, 2);
+  ctx.beginPath();
+  ctx.moveTo(-4, -18);
+  ctx.lineTo(-26, 4);
+  ctx.lineTo(12, -14);
+  ctx.closePath();
+  fill(top);
+
+  // 目
+  if (down) {
+    xEye(40, -40, 4);
+  } else {
+    circle(40, -40, 5.5, "#fff", edge);
+    circle(41.5, -40, 3, "#111");
+    circle(42.5, -41.5, 1, "#fff");
+    line(31, -51, 49, -46, "#1e2f40", 2); // 怒りまゆげ
+  }
+
+  // 口とギザギザの歯
+  const tooth = (x, y, dir) => {
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 2.5, y + dir * 5);
+    ctx.lineTo(x + 5, y);
+    ctx.closePath();
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+  };
+  if (open) {
+    ctx.beginPath();
+    ctx.moveTo(32, -25);
+    ctx.quadraticCurveTo(46, -4, 58, -27);
+    ctx.closePath();
+    ctx.fillStyle = "#7a1f2b";
+    ctx.fill();
+    for (const x of [35, 41, 47, 52]) tooth(x, -26, 1);
+    for (const x of [39, 45]) tooth(x, -15, -1);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(32, -23);
+    ctx.quadraticCurveTo(46, -16, 58, -26);
+    ctx.strokeStyle = "#1e2f40";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    for (const x of [38, 44, 50]) tooth(x, -21.5 + (x - 38) * -0.15, 1);
+  }
+
+  if (angry && !down) {
+    circle(28, -30, 6, "rgba(255, 90, 90, 0.5)");
+    // おでこの怒りマーク
+    for (let i = 0; i < 4; i++) {
+      const a = (i * Math.PI) / 2 + Math.PI / 4;
+      line(22 + Math.cos(a) * 3, -54 + Math.sin(a) * 3, 22 + Math.cos(a) * 7, -54 + Math.sin(a) * 7, "#ff4d4d", 2.5);
+    }
+  }
+}
+
 function drawEnemy(e) {
   if (e.x + e.w < camX - 40 || e.x > camX + W + 40) return;
   ctx.save();
@@ -1576,8 +2244,15 @@ function drawEnemy(e) {
   }
   ctx.scale(e.facing, 1);
   const look = { t: e.t, walking: e.active && e.onGround, dead: e.dead };
-  if (stage === 2) drawMiniPanda(look);
-  else drawShirokuma(look);
+  if (stage === 3) {
+    if (e.kind === "fish") drawMiniShark(look);
+    else if (e.kind === "jump") drawJellyfish(look);
+    else drawCrab(look);
+  } else if (stage === 2) {
+    drawMiniPanda(look);
+  } else {
+    drawShirokuma(look);
+  }
   ctx.restore();
 }
 
@@ -1759,6 +2434,12 @@ function drawBoss(b) {
   if (b.state !== "down" && b.invincible > 0 && Math.floor(b.invincible / 3) % 2 === 0) return;
   ctx.save();
   ctx.translate(b.x + b.w / 2, b.y + b.h);
+  if (stage === 3) {
+    drawSharkBoss(b);
+    ctx.restore();
+    if (b.stun > 0 && b.state !== "down") drawDizzyStars(b.x + b.w / 2, b.y - 8, b.stun);
+    return;
+  }
   const rolling = b.state === "roll" && b.t >= 30;
   if (b.state === "down") ctx.rotate(-b.facing * Math.min(b.t / 30, 1) * (Math.PI / 2)); // あおむけに倒れる
   if (b.state === "crouch" || (b.state === "roll" && !rolling)) ctx.scale(1.08, 0.88);
@@ -1773,6 +2454,22 @@ function drawBoss(b) {
   }
   ctx.restore();
   if (b.stun > 0 && b.state !== "down") drawDizzyStars(b.x + b.w / 2, b.y - 8, b.stun);
+}
+
+// サメの向きや傾きをつけて描く（ctx の原点はボスの下の中心）
+function drawSharkBoss(b) {
+  const angry = bossAngry();
+  const charging = b.state === "dash" && b.t <= (angry ? 30 : 42);
+  const falling = b.state === "dive" && b.vy > 0;
+  ctx.translate(0, -b.h / 2);
+  if (b.state === "down") ctx.scale(1, 1 - 2 * Math.min(b.t / 20, 1)); // くるっとおなかを上に向ける
+  if (b.state === "dive" && b.t <= 50) ctx.rotate(-b.facing * 0.3); // 頭を上げてのぼる
+  if (falling) ctx.rotate(b.facing * 0.7); // 頭から急降下
+  if (charging) ctx.translate(rand(-2, 2), 0); // 突進の前にぶるぶるふるえる
+  ctx.translate(0, b.h / 2);
+  ctx.scale(b.facing, 1);
+  const open = (b.state === "dash" && !charging) || b.state === "bubble" || falling;
+  drawShark({ t: frame, angry, down: b.state === "down", open: open && b.stun === 0 });
 }
 
 // 目を回しているときに頭の上をまわる星
