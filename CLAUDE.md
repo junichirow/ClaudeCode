@@ -46,6 +46,7 @@ cd setlist_app && python -m unittest -v   # テスト
 - 機能ごとに Blueprint：`auth.py` / `songs.py` / `setlists.py` / `export.py`。モデルは `models.py`、演奏時間の変換は `durations.py`（DB には秒で保存）
 - ユーザーごとの分離：取得はすべて `user_id=current_user.id` で絞り、他人の ID は 404
 - CSRF は Flask-WTF の `CSRFProtect`。フォームには `{{ csrf_token() }}` の hidden を入れる（テストでは `WTF_CSRF_ENABLED=False`）
+- 印刷・PDF は `/setlists/<id>/print`（`setlists/print.html` + `static/print.css`、base.html を継承しない単独ページ）。PDF はブラウザの印刷の「PDF に保存」に任せ、サーバー側で PDF は作らない。曲数で文字サイズを 3 段階に切り替える
 - 曲順は `SetlistItem.position`。並べ替えは ↑↓ ボタン（POST）で隣と入れ替え、削除時は `Setlist.renumber()` で振り直す
 - Render 上（環境変数 `RENDER` あり）では `ProxyFix` で HTTPS を判別し、クッキーを Secure にする。`after_request` で `X-Frame-Options` などのセキュリティヘッダーを付け、`MAX_CONTENT_LENGTH` は 1MB
 - Render の Web サービスは `render.yaml` ではなくダッシュボードで手動作成（Root Directory `setlist_app`、Python は `.python-version` で 3.13）

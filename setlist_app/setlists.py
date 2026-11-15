@@ -86,6 +86,16 @@ def show(setlist_id):
     return render_template("setlists/show.html", setlist=setlist)
 
 
+@bp.route("/<int:setlist_id>/print")
+def print_view(setlist_id):
+    """印刷用の画面（白い紙に黒い文字。ブラウザの印刷から PDF にも保存できる）"""
+    setlist = get_own_setlist(setlist_id)
+    # 曲が多いほど文字を小さくして、A4 1 枚に収まりやすくする
+    count = len(setlist.items)
+    size = "large" if count <= 12 else "medium" if count <= 20 else "small"
+    return render_template("setlists/print.html", setlist=setlist, size=size)
+
+
 @bp.route("/<int:setlist_id>/edit", methods=["GET", "POST"])
 def edit(setlist_id):
     setlist = get_own_setlist(setlist_id)

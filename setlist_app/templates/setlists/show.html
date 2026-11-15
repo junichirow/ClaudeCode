@@ -41,5 +41,6 @@
 <div class="form-actions">
   <a class="button primary" href="{{ url_for('setlists.items', setlist_id=setlist.id) }}">曲の追加・並べ替え</a>
   <a class="button" href="{{ url_for('setlists.edit', setlist_id=setlist.id) }}">タイトル・日付・会場の編集</a>
+  <a class="button" href="{{ url_for('setlists.print_view', setlist_id=setlist.id) }}">印刷・PDF</a>
 </div>
 {% endblock %}

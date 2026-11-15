@@ -1,0 +1,56 @@
+/* 印刷用の画面。白い紙に黒い太字で、ステージの床に置いても読めるようにする */
+@page { size: A4; margin: 12mm; }
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #e5e7eb;
+  color: #000;
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+}
+
+.toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem; background: #111418; color: #fff;
+}
+.toolbar a { color: #fff; }
+.toolbar button {
+  font-size: 1rem; padding: 0.5rem 1.2rem; border: 0; border-radius: 8px;
+  background: #f59e0b; color: #000; font-weight: bold; cursor: pointer;
+}
+.toolbar p { margin: 0; font-size: 0.85rem; color: #cbd5e1; }
+
+.sheet {
+  max-width: 210mm; margin: 1rem auto; padding: 12mm;
+  background: #fff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+header { border-bottom: 3px solid #000; margin-bottom: 0.6em; padding-bottom: 0.3em; }
+h1 { margin: 0; font-size: 2em; line-height: 1.2; word-break: break-word; }
+.info { margin: 0.2em 0 0; font-size: 0.9em; }
+.info span + span::before { content: " ／ "; }
+
+ol { list-style: none; margin: 0; padding: 0; }
+li {
+  display: grid; grid-template-columns: 1.4em 1fr auto; column-gap: 0.4em;
+  align-items: baseline;
+  padding: 0.25em 0; border-bottom: 1px solid #999;
+  break-inside: avoid;
+}
+.number { font-weight: bold; text-align: right; }
+.title { font-weight: bold; line-height: 1.25; word-break: break-word; }
+.detail { font-size: 0.55em; white-space: nowrap; }
+.detail span + span { margin-left: 0.6em; }
+.memo { grid-column: 2 / 4; font-size: 0.5em; white-space: pre-wrap; }
+
+/* 曲数に合わせて文字の大きさを変える */
+.size-large { font-size: 26pt; }
+.size-medium { font-size: 19pt; }
+.size-small { font-size: 14pt; }
+.size-large h1, .size-medium h1, .size-small h1 { font-size: 20pt; }
+.info { font-size: 10pt; }
+
+@media print {
+  body { background: #fff; }
+  .toolbar { display: none; }
+  .sheet { margin: 0; padding: 0; max-width: none; box-shadow: none; }
+}

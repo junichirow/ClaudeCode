@@ -7,6 +7,7 @@
 - 合計演奏時間を自動で計算
 - ユーザー登録・ログイン。自分のデータだけが見えます
 - 曲とセットリストを CSV で書き出し（Excel でも開けます）
+- セットリストの印刷用画面（白い紙に大きな文字。ブラウザの印刷で「PDF に保存」を選べば PDF にもできます）
 
 構成：Flask / Flask-Login / Flask-SQLAlchemy / Flask-WTF（CSRF 対策）。DB はローカルなら SQLite、本番は Supabase（PostgreSQL）。Web サーバーは Render + gunicorn です。
 

@@ -262,6 +262,7 @@ class SetlistAppTest(unittest.TestCase):
         self.assertEqual(bob.get(f"/songs/{alice_song}/edit").status_code, 404)
         self.assertEqual(bob.post(f"/songs/{alice_song}/delete").status_code, 404)
         self.assertEqual(bob.get(f"/setlists/{alice_setlist}").status_code, 404)
+        self.assertEqual(bob.get(f"/setlists/{alice_setlist}/print").status_code, 404)
         self.assertEqual(bob.post(f"/setlists/{alice_setlist}/delete").status_code, 404)
 
         # 自分のセットリストに他人の曲は入れられない
@@ -273,6 +274,32 @@ class SetlistAppTest(unittest.TestCase):
 
         self.assertNotIn("アリス", bob.get("/export/songs.csv").data.decode("utf-8-sig"))
         self.assertNotIn("アリス", bob.get("/export/setlists.csv").data.decode("utf-8-sig"))
+
+    # --- 印刷 ---
+
+    def test_印刷用の画面(self):
+        self.register()
+        self.add_song("曲A", "4:35", key="Em", tuning="Drop D", bpm="128", memo="カポ2")
+        self.add_song("曲B", "3:00")
+        setlist_id = self.add_setlist("ワンマン")
+        for title in ("曲A", "曲B"):
+            self.client.post(f"/setlists/{setlist_id}/items/add", data={"song_id": self.song_id(title)})
+
+        self.assertIn(f"/setlists/{setlist_id}/print",
+                      self.client.get(f"/setlists/{setlist_id}").get_data(as_text=True))
+        page = self.client.get(f"/setlists/{setlist_id}/print").get_data(as_text=True)
+        self.assertIn("<title>ワンマン_20261201</title>", page)
+        for text in ("下北沢", "2 曲・合計 7:35", "曲A", "曲B", "Em", "Drop D", "♩=128", "カポ2", "size-large"):
+            self.assertIn(text, page)
+        self.assertLess(page.index("曲A"), page.index("曲B"))
+
+    def test_曲が多いと印刷の文字を小さくする(self):
+        self.register()
+        setlist_id = self.add_setlist("フェス")
+        for i in range(21):
+            self.add_song(f"曲{i}")
+            self.client.post(f"/setlists/{setlist_id}/items/add", data={"song_id": self.song_id(f"曲{i}")})
+        self.assertIn("size-small", self.client.get(f"/setlists/{setlist_id}/print").get_data(as_text=True))
 
     # --- CSV ---
 
