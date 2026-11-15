@@ -152,6 +152,27 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .live-body { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
 .live-title { font-size: 1.6rem; font-weight: bold; line-height: 1.3; word-break: break-word; }
 
+/* テンポの点滅：曲名をタップすると横の赤い点がテンポに合わせて光る */
+.beat-toggle {
+  display: inline; padding: 0; border: 0; background: none;
+  color: inherit; font-family: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.beat-dot {
+  display: inline-block;
+  width: 0.7em; height: 0.7em;
+  margin-left: 0.4em;
+  border: 2px solid #5a1a1a;
+  border-radius: 50%;
+  vertical-align: 0.05em;
+}
+.beat-toggle[aria-pressed="true"] .beat-dot { background: #4a0f0f; border-color: #8a1f1f; }
+.beat-dot.beat-on {
+  background: #ff2020 !important;
+  border-color: #ff6a6a !important;
+  box-shadow: 0 0 0.5em 0.15em rgba(255, 32, 32, 0.8);
+}
+
 /* 曲の追加・並べ替え */
 .add-form { display: flex; gap: 0.5rem; margin: 1rem 0; }
 .add-form select { flex: 1; min-width: 0; }

@@ -22,7 +22,13 @@
       <li>
         <span class="number">{{ loop.index }}</span>
         <div class="live-body">
-          <span class="live-title">{{ item.song.title }}</span>
+          {% if item.song.bpm %}
+            {# タップするとテンポに合わせて赤い点が 16 回光る（static/metronome.js） #}
+            <button type="button" class="live-title beat-toggle" data-bpm="{{ item.song.bpm }}"
+                    aria-pressed="false">{{ item.song.title }}<span class="beat-dot" aria-hidden="true"></span></button>
+          {% else %}
+            <span class="live-title">{{ item.song.title }}</span>
+          {% endif %}
           <span class="meta">
             {% if item.song.key %}<span class="tag">{{ item.song.key }}</span>{% endif %}
             {% if item.song.tuning %}<span class="tag">{{ item.song.tuning }}</span>{% endif %}
@@ -43,4 +49,7 @@
   <a class="button" href="{{ url_for('setlists.edit', setlist_id=setlist.id) }}">タイトル・日付・会場の編集</a>
   <a class="button" href="{{ url_for('setlists.print_view', setlist_id=setlist.id) }}">印刷・PDF</a>
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='metronome.js') }}"></script>
 {% endblock %}

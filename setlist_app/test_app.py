@@ -275,6 +275,22 @@ class SetlistAppTest(unittest.TestCase):
         self.assertNotIn("アリス", bob.get("/export/songs.csv").data.decode("utf-8-sig"))
         self.assertNotIn("アリス", bob.get("/export/setlists.csv").data.decode("utf-8-sig"))
 
+    # --- テンポの点滅 ---
+
+    def test_テンポのある曲だけ曲名をタップできる(self):
+        self.register()
+        self.add_song("曲A", bpm="128")
+        self.add_song("曲B")
+        setlist_id = self.add_setlist("ワンマン")
+        for title in ("曲A", "曲B"):
+            self.client.post(f"/setlists/{setlist_id}/items/add", data={"song_id": self.song_id(title)})
+        page = self.client.get(f"/setlists/{setlist_id}").get_data(as_text=True)
+        self.assertIn('data-bpm="128"', page)
+        self.assertEqual(page.count('class="live-title beat-toggle"'), 1)
+        self.assertIn('<span class="live-title">曲B</span>', page)
+        self.assertIn("metronome.js", page)
+        self.assertEqual(self.client.get("/static/metronome.js").status_code, 200)
+
     # --- 印刷 ---
 
     def test_印刷用の画面(self):
