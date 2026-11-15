@@ -124,7 +124,7 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .tag { border: 1px solid var(--border); border-radius: 6px; padding: 0 0.4rem; color: var(--text); }
 .time { font-variant-numeric: tabular-nums; color: var(--accent); }
 .memo { margin: 0.3rem 0 0; color: var(--sub); font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; }
-.actions { display: flex; gap: 0.5rem; margin-top: 0.6rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.6rem; }
 .actions form { margin: 0; }
 
 /* セットリストの見出し・合計時間 */

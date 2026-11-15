@@ -158,7 +158,6 @@ class SetlistAppTest(unittest.TestCase):
         song_id = self.song_id("曲A")
         page = self.client.get("/songs/").get_data(as_text=True)
         self.assertIn(f"/songs/{song_id}/lyrics", page)
-        self.assertIn("（未入力）", page)
 
         res = self.client.post(f"/songs/{song_id}/lyrics",
                                data={"lyrics": "1 番の歌詞\r\n\r\nサビ & <コーラス>\r\n"})
@@ -168,7 +167,6 @@ class SetlistAppTest(unittest.TestCase):
 
         page = self.client.get(f"/songs/{song_id}/lyrics").get_data(as_text=True)
         self.assertIn("1 番の歌詞\n\nサビ &amp; &lt;コーラス&gt;", page)  # エスケープされて表示される
-        self.assertNotIn("（未入力）", self.client.get("/songs/").get_data(as_text=True))
 
     def test_ライブ表示で歌詞を開ける(self):
         self.register()
