@@ -9,6 +9,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from durations import format_duration
 from models import User, db
+from sqlalchemy import inspect, text
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -28,6 +29,22 @@ def normalize_database_url(url):
         if url.startswith(prefix):
             return "postgresql+psycopg://" + url[len(prefix):]
     return url
+
+
+# 後から追加した列。create_all() は既存のテーブルに列を足さないので、無ければ ALTER TABLE で足す
+# （マイグレーションの仕組みが無いための簡易版。SQLite と PostgreSQL の両方で動く）
+ADDED_COLUMNS = [
+    ("songs", "bpm", "INTEGER"),
+]
+
+
+def add_missing_columns():
+    inspector = inspect(db.engine)
+    with db.engine.begin() as conn:
+        for table, column, column_type in ADDED_COLUMNS:
+            existing = {c["name"] for c in inspector.get_columns(table)}
+            if column not in existing:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}"))
 
 
 @login_manager.user_loader
@@ -107,6 +124,7 @@ def create_app(test_config=None):
 
     with app.app_context():
         db.create_all()
+        add_missing_columns()
 
     return app
 

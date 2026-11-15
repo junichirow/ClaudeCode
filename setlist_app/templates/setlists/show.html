@@ -26,6 +26,7 @@
           <span class="meta">
             {% if item.song.key %}<span class="tag">{{ item.song.key }}</span>{% endif %}
             {% if item.song.tuning %}<span class="tag">{{ item.song.tuning }}</span>{% endif %}
+            {% if item.song.bpm %}<span class="tag">♩={{ item.song.bpm }}</span>{% endif %}
             {% if item.song.duration_seconds is not none %}<span class="time">{{ item.song.duration_seconds|duration }}</span>{% endif %}
           </span>
           {% if item.song.memo %}<p class="memo">{{ item.song.memo }}</p>{% endif %}

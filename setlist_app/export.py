@@ -42,10 +42,10 @@ def songs_csv():
     songs = db.session.scalars(
         db.select(Song).filter_by(user_id=current_user.id).order_by(Song.title)
     ).all()
-    rows = [["曲名", "キー", "チューニング", "演奏時間", "メモ"]]
+    rows = [["曲名", "キー", "チューニング", "テンポ", "演奏時間", "メモ"]]
     for song in songs:
         rows.append([
-            song.title, song.key, song.tuning,
+            song.title, song.key, song.tuning, song.bpm or "",
             format_duration(song.duration_seconds), song.memo,
         ])
     return _csv_response(rows, "songs")
@@ -58,7 +58,7 @@ def setlists_csv():
         .filter_by(user_id=current_user.id)
         .order_by(Setlist.date.desc().nulls_last(), Setlist.id.desc())
     ).all()
-    rows = [["セットリスト", "日付", "会場", "曲順", "曲名", "キー", "チューニング", "演奏時間"]]
+    rows = [["セットリスト", "日付", "会場", "曲順", "曲名", "キー", "チューニング", "テンポ", "演奏時間"]]
     for setlist in setlists:
         head = [
             setlist.title,
@@ -66,11 +66,11 @@ def setlists_csv():
             setlist.venue,
         ]
         if not setlist.items:
-            rows.append(head + ["", "", "", "", ""])
+            rows.append(head + ["", "", "", "", "", ""])
         for number, item in enumerate(setlist.items, start=1):
             song = item.song
             rows.append(head + [
-                number, song.title, song.key, song.tuning,
+                number, song.title, song.key, song.tuning, song.bpm or "",
                 format_duration(song.duration_seconds),
             ])
     return _csv_response(rows, "setlists")

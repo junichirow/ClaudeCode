@@ -1,5 +1,6 @@
 import os
 import re
+import sqlite3
 import tempfile
 import unittest
 
@@ -133,9 +134,9 @@ class SetlistAppTest(unittest.TestCase):
 
     def test_曲の登録と編集と削除(self):
         self.register()
-        self.add_song("曲A", "4:35", key="Em", tuning="Drop D", memo="カポ2")
+        self.add_song("曲A", "4:35", key="Em", tuning="Drop D", bpm="128", memo="カポ2")
         page = self.client.get("/songs/").get_data(as_text=True)
-        for text in ("曲A", "4:35", "Em", "Drop D", "カポ2"):
+        for text in ("曲A", "4:35", "Em", "Drop D", "♩=128", "カポ2"):
             self.assertIn(text, page)
 
         song_id = self.song_id("曲A")
@@ -145,6 +146,7 @@ class SetlistAppTest(unittest.TestCase):
         page = self.client.get("/songs/").get_data(as_text=True)
         self.assertIn("曲A改", page)
         self.assertIn("3:00", page)
+        self.assertNotIn("♩=", page)  # テンポを消したら表示されない
 
         self.client.post(f"/songs/{song_id}/delete")
         self.assertIsNone(self.song_id("曲A改"))
@@ -155,6 +157,30 @@ class SetlistAppTest(unittest.TestCase):
         res = self.add_song("曲A", "4分35秒")
         self.assertIn("分:秒", res.get_data(as_text=True))
         self.assertIsNone(self.song_id("曲A"))
+
+    def test_テンポの形式が違うと登録できない(self):
+        self.register()
+        for bpm in ("abc", "10", "500", "120.5"):
+            res = self.add_song("曲A", bpm=bpm)
+            self.assertIn("テンポは 20〜400", res.get_data(as_text=True))
+            self.assertIsNone(self.song_id("曲A"))
+
+    def test_テンポ列が無い古いDBにも列を追加する(self):
+        path = os.path.join(self.tmpdir.name, "old.db")
+        with sqlite3.connect(path) as conn:
+            conn.execute(
+                "CREATE TABLE songs (id INTEGER PRIMARY KEY, user_id INTEGER NOT NULL,"
+                " title VARCHAR(200) NOT NULL, key VARCHAR(20) NOT NULL,"
+                " tuning VARCHAR(50) NOT NULL, duration_seconds INTEGER, memo TEXT NOT NULL)"
+            )
+            conn.execute("INSERT INTO songs VALUES (1, 1, '既存の曲', '', '', 240, '')")
+        app = create_app({"TESTING": True, "SECRET_KEY": "test",
+                          "SQLALCHEMY_DATABASE_URI": f"sqlite:///{path}"})
+        with app.app_context():
+            song = db.session.get(Song, 1)
+            self.assertEqual(song.title, "既存の曲")
+            self.assertIsNone(song.bpm)
+            db.engine.dispose()
 
     def test_曲名は必須(self):
         self.register()
@@ -252,7 +278,7 @@ class SetlistAppTest(unittest.TestCase):
 
     def test_CSV書き出し(self):
         self.register()
-        self.add_song("曲A", "4:35", key="Em", memo="メモ, カンマ入り")
+        self.add_song("曲A", "4:35", key="Em", bpm="120", memo="メモ, カンマ入り")
         setlist_id = self.add_setlist("ワンマン")
         self.client.post(f"/setlists/{setlist_id}/items/add", data={"song_id": self.song_id("曲A")})
 
@@ -261,11 +287,11 @@ class SetlistAppTest(unittest.TestCase):
         self.assertIn("attachment", res.headers["Content-Disposition"])
         self.assertTrue(res.data.startswith(b"\xef\xbb\xbf"))  # BOM
         text = res.data.decode("utf-8-sig")
-        self.assertIn("曲名,キー,チューニング,演奏時間,メモ", text)
-        self.assertIn('曲A,Em,,4:35,"メモ, カンマ入り"', text)
+        self.assertIn("曲名,キー,チューニング,テンポ,演奏時間,メモ", text)
+        self.assertIn('曲A,Em,,120,4:35,"メモ, カンマ入り"', text)
 
         text = self.client.get("/export/setlists.csv").data.decode("utf-8-sig")
-        self.assertIn("ワンマン,2026-12-01,下北沢,1,曲A,Em,,4:35", text)
+        self.assertIn("ワンマン,2026-12-01,下北沢,1,曲A,Em,,120,4:35", text)
 
 
 class 本番設定Test(unittest.TestCase):

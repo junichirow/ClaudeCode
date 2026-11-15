@@ -21,6 +21,8 @@ class Song(db.Model):
     title = db.Column(db.String(200), nullable=False)
     key = db.Column(db.String(20), nullable=False, default="")
     tuning = db.Column(db.String(50), nullable=False, default="")
+    # テンポ（BPM）。未入力なら None
+    bpm = db.Column(db.Integer)
     # 演奏時間は秒で持つ。未入力なら None
     duration_seconds = db.Column(db.Integer)
     memo = db.Column(db.Text, nullable=False, default="")

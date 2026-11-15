@@ -15,10 +15,16 @@
       <input name="tuning" value="{{ values.tuning }}" maxlength="50" placeholder="例：Drop D">
     </label>
   </div>
-  <label>演奏時間（分:秒）
-    <input name="duration" value="{{ values.duration }}" placeholder="例：4:35"
-           inputmode="numeric" pattern="\d{1,3}[:：][0-5]\d">
-  </label>
+  <div class="row">
+    <label>テンポ（BPM）
+      <input name="bpm" value="{{ values.bpm }}" placeholder="例：120"
+             type="number" min="20" max="400" inputmode="numeric">
+    </label>
+    <label>演奏時間（分:秒）
+      <input name="duration" value="{{ values.duration }}" placeholder="例：4:35"
+             inputmode="numeric" pattern="\d{1,3}[:：][0-5]\d">
+    </label>
+  </div>
   <label>メモ
     <textarea name="memo" rows="4">{{ values.memo }}</textarea>
   </label>

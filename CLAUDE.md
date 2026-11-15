@@ -42,7 +42,7 @@ cd setlist_app && python -m unittest -v   # テスト
 - `app.py` の `create_app(test_config=None)` がアプリファクトリ。`.env` を python-dotenv で読み、`SECRET_KEY` が無ければ起動時に例外
 - `DATABASE_URL` が無ければ `setlist_app/setlist.db`（SQLite、`.gitignore` 済み）。あれば `normalize_database_url()` で `postgres://` / `postgresql://` を `postgresql+psycopg://`（psycopg 3）に変換
 - 本番の Supabase は **Session pooler（ポート 5432）** の接続文字列を使う。直接接続は IPv6 専用で Render から届かず、Transaction pooler（6543）は psycopg のプリペアドステートメントと相性が悪い
-- テーブルは `db.create_all()` で作成（マイグレーションの仕組みは無い。列を変えるときは本番 DB を手で直す必要がある）
+- テーブルは `db.create_all()` で作成（マイグレーションの仕組みは無い）。後から足した列は `app.py` の `ADDED_COLUMNS` に書くと、起動時に `add_missing_columns()` が無ければ `ALTER TABLE ... ADD COLUMN` する（本番 DB にも自動で反映）。列の削除・型変更は手で直す必要がある
 - 機能ごとに Blueprint：`auth.py` / `songs.py` / `setlists.py` / `export.py`。モデルは `models.py`、演奏時間の変換は `durations.py`（DB には秒で保存）
 - ユーザーごとの分離：取得はすべて `user_id=current_user.id` で絞り、他人の ID は 404
 - CSRF は Flask-WTF の `CSRFProtect`。フォームには `{{ csrf_token() }}` の hidden を入れる（テストでは `WTF_CSRF_ENABLED=False`）

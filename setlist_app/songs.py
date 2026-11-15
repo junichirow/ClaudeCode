@@ -20,17 +20,31 @@ def get_own_song(song_id):
     )
 
 
+def parse_bpm(text):
+    """テンポの文字列を整数にする。空なら None。範囲外や数字以外は ValueError"""
+    if not text:
+        return None
+    if not text.isdecimal() or not 20 <= int(text) <= 400:
+        raise ValueError("テンポは 20〜400 の数字で入力してください（例：120）")
+    return int(text)
+
+
 def _read_form():
     """フォームの値を読み、(値の辞書, エラーメッセージ) を返す"""
     values = {
         "title": request.form.get("title", "").strip(),
         "key": request.form.get("key", "").strip(),
         "tuning": request.form.get("tuning", "").strip(),
+        "bpm": request.form.get("bpm", "").strip(),
         "duration": request.form.get("duration", "").strip(),
         "memo": request.form.get("memo", "").strip(),
     }
     if not values["title"]:
         return values, "曲名を入力してください"
+    try:
+        values["bpm_value"] = parse_bpm(values["bpm"])
+    except ValueError as e:
+        return values, str(e)
     try:
         values["duration_seconds"] = parse_duration(values["duration"])
     except ValueError as e:
@@ -42,6 +56,7 @@ def _apply(song, values):
     song.title = values["title"][:200]
     song.key = values["key"][:20]
     song.tuning = values["tuning"][:50]
+    song.bpm = values["bpm_value"]
     song.duration_seconds = values["duration_seconds"]
     song.memo = values["memo"]
 
@@ -88,6 +103,7 @@ def edit(song_id):
             "title": song.title,
             "key": song.key,
             "tuning": song.tuning,
+            "bpm": "" if song.bpm is None else str(song.bpm),
             "duration": format_duration(song.duration_seconds),
             "memo": song.memo,
         }
