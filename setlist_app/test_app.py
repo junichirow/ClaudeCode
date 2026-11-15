@@ -37,6 +37,14 @@ class 変換関数Test(unittest.TestCase):
         self.assertEqual(format_duration(None), "")
 
 
+def create_user(app, username="alice", password="password123"):
+    from werkzeug.security import generate_password_hash
+    from models import User
+    with app.app_context():
+        db.session.add(User(username=username, password_hash=generate_password_hash(password)))
+        db.session.commit()
+
+
 class SetlistAppTest(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
@@ -56,10 +64,11 @@ class SetlistAppTest(unittest.TestCase):
     # --- 補助 ---
 
     def register(self, username="alice", password="password123", client=None):
-        return (client or self.client).post("/register", data={
+        """新規登録は無効なので、ユーザーを DB に直接作ってからログインする"""
+        create_user(self.app, username, password)
+        return (client or self.client).post("/login", data={
             "username": username,
             "password": password,
-            "password_confirm": password,
         })
 
     def add_song(self, title="曲A", duration="4:00", **extra):
@@ -111,15 +120,22 @@ class SetlistAppTest(unittest.TestCase):
             user = db.session.scalar(db.select(User).filter_by(username="alice"))
             self.assertNotIn("password123", user.password_hash)
 
-    def test_同じユーザー名は登録できない(self):
-        self.register()
-        self.client.post("/logout")
-        res = self.register()
-        self.assertIn("すでに使われています", res.get_data(as_text=True))
+    def test_登録ページはログイン画面へ移動する(self):
+        res = self.client.get("/register")
+        self.assertEqual(res.status_code, 302)
+        self.assertTrue(res.headers["Location"].endswith("/login"))
 
-    def test_短いパスワードは登録できない(self):
-        res = self.register(password="short")
-        self.assertIn("8 文字以上", res.get_data(as_text=True))
+        res = self.client.post("/register", data={
+            "username": "mallory", "password": "password123", "password_confirm": "password123",
+        })
+        self.assertEqual(res.status_code, 302)
+        self.assertTrue(res.headers["Location"].endswith("/login"))
+        from models import User
+        with self.app.app_context():
+            self.assertIsNone(db.session.scalar(db.select(User).filter_by(username="mallory")))
+
+    def test_ログイン画面に登録リンクが無い(self):
+        self.assertNotIn("/register", self.client.get("/login").get_data(as_text=True))
 
     def test_ログイン後の戻り先は自サイトだけ(self):
         self.register()
@@ -407,26 +423,25 @@ class 本番設定Test(unittest.TestCase):
             db.engine.dispose()
         self.tmpdir.cleanup()
 
-    def test_HTTPSでトークンとRefererがあれば登録できる(self):
+    def test_HTTPSでトークンとRefererがあればログインできる(self):
+        create_user(self.app)
         https = {"base_url": "https://localhost", "headers": {"X-Forwarded-Proto": "https"}}
-        page = self.client.get("/register", **https).get_data(as_text=True)
+        page = self.client.get("/login", **https).get_data(as_text=True)
         token = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
-        res = self.client.post("/register", data={
-            "csrf_token": token, "username": "alice",
-            "password": "password123", "password_confirm": "password123",
+        res = self.client.post("/login", data={
+            "csrf_token": token, "username": "alice", "password": "password123",
         }, base_url="https://localhost",
-            headers={"X-Forwarded-Proto": "https", "Referer": "https://localhost/register"})
+            headers={"X-Forwarded-Proto": "https", "Referer": "https://localhost/login"})
         self.assertEqual(res.status_code, 302)
         self.assertIn("Secure", res.headers["Set-Cookie"])
         self.assertEqual(self.client.get("/setlists/", **https).status_code, 200)
 
     def test_他サイトからのRefererは拒否(self):
         https = {"base_url": "https://localhost", "headers": {"X-Forwarded-Proto": "https"}}
-        page = self.client.get("/register", **https).get_data(as_text=True)
+        page = self.client.get("/login", **https).get_data(as_text=True)
         token = re.search(r'name="csrf_token" value="([^"]+)"', page).group(1)
-        res = self.client.post("/register", data={
-            "csrf_token": token, "username": "alice",
-            "password": "password123", "password_confirm": "password123",
+        res = self.client.post("/login", data={
+            "csrf_token": token, "username": "alice", "password": "password123",
         }, base_url="https://localhost",
             headers={"X-Forwarded-Proto": "https", "Referer": "https://evil.example.com/"})
         self.assertEqual(res.status_code, 400)
@@ -449,8 +464,8 @@ class CSRFTest(unittest.TestCase):
                 "SECRET_KEY": "test",
                 "SQLALCHEMY_DATABASE_URI": f"sqlite:///{os.path.join(tmpdir, 'test.db')}",
             })
-            res = app.test_client().post("/register", data={
-                "username": "alice", "password": "password123", "password_confirm": "password123",
+            res = app.test_client().post("/login", data={
+                "username": "alice", "password": "password123",
             })
             self.assertEqual(res.status_code, 400)
             with app.app_context():
