@@ -26,6 +26,7 @@ class Song(db.Model):
     # 演奏時間は秒で持つ。未入力なら None
     duration_seconds = db.Column(db.Integer)
     memo = db.Column(db.Text, nullable=False, default="")
+    lyrics = db.Column(db.Text, nullable=False, default="")
 
     # 曲を消したら、セットリストに入っている分も消す
     setlist_items = db.relationship(

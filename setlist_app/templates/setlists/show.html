@@ -36,6 +36,13 @@
             {% if item.song.duration_seconds is not none %}<span class="time">{{ item.song.duration_seconds|duration }}</span>{% endif %}
           </span>
           {% if item.song.memo %}<p class="memo">{{ item.song.memo }}</p>{% endif %}
+          {% if item.song.lyrics %}
+            {# 「歌詞」を押すとその場で開閉する（画面は移らないので、テンポの点滅も止まらない） #}
+            <details class="lyrics">
+              <summary>歌詞</summary>
+              <div class="lyrics-text">{{ item.song.lyrics }}</div>
+            </details>
+          {% endif %}
         </div>
       </li>
     {% endfor %}

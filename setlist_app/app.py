@@ -35,6 +35,7 @@ def normalize_database_url(url):
 # （マイグレーションの仕組みが無いための簡易版。SQLite と PostgreSQL の両方で動く）
 ADDED_COLUMNS = [
     ("songs", "bpm", "INTEGER"),
+    ("songs", "lyrics", "TEXT NOT NULL DEFAULT ''"),
 ]
 
 

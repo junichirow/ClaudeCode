@@ -110,6 +110,19 @@ def edit(song_id):
     return render_template("songs/form.html", values=values, song=song)
 
 
+@bp.route("/<int:song_id>/lyrics", methods=["GET", "POST"])
+def lyrics(song_id):
+    """曲ごとの歌詞を書く画面"""
+    song = get_own_song(song_id)
+    if request.method == "POST":
+        # 改行コードを \n にそろえる（ブラウザからは \r\n で届く）
+        song.lyrics = request.form.get("lyrics", "").replace("\r\n", "\n").strip()
+        db.session.commit()
+        flash(f"「{song.title}」の歌詞を保存しました", "success")
+        return redirect(url_for("songs.lyrics", song_id=song.id))
+    return render_template("songs/lyrics.html", song=song)
+
+
 @bp.route("/<int:song_id>/delete", methods=["POST"])
 def delete(song_id):
     song = get_own_song(song_id)

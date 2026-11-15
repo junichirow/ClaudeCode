@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}{{ song.title }} の歌詞 - {% endblock %}
+{% block content %}
+<h1>{{ song.title }} <span class="sub">の歌詞</span></h1>
+<form method="post" class="form">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label>歌詞
+    <textarea name="lyrics" class="lyrics-input" rows="20"
+              placeholder="ここに歌詞を書きます。改行はそのまま保存されます">{{ song.lyrics }}</textarea>
+  </label>
+  <div class="form-actions">
+    <button class="button primary" type="submit">保存</button>
+    <a class="button" href="{{ url_for('songs.index') }}">曲の一覧へ戻る</a>
+  </div>
+</form>
+{% endblock %}

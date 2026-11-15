@@ -44,6 +44,7 @@ cd setlist_app && python -m unittest -v   # テスト
 - 本番の Supabase は **Session pooler（ポート 5432）** の接続文字列を使う。直接接続は IPv6 専用で Render から届かず、Transaction pooler（6543）は psycopg のプリペアドステートメントと相性が悪い
 - テーブルは `db.create_all()` で作成（マイグレーションの仕組みは無い）。後から足した列は `app.py` の `ADDED_COLUMNS` に書くと、起動時に `add_missing_columns()` が無ければ `ALTER TABLE ... ADD COLUMN` する（本番 DB にも自動で反映）。列の削除・型変更は手で直す必要がある
 - 機能ごとに Blueprint：`auth.py` / `songs.py` / `setlists.py` / `export.py`。モデルは `models.py`、演奏時間の変換は `durations.py`（DB には秒で保存）
+- 歌詞は `Song.lyrics`（Text）。曲の一覧の「歌詞」ボタンから `/songs/<id>/lyrics` の画面で書く（曲の編集フォームとは別。改行は `\n` にそろえて保存）。ライブ表示では歌詞のある曲に `<details class="lyrics">` の「歌詞」ボタンが付き、その場で開閉する（JS なし）。CSV と印刷には含めない
 - ユーザーごとの分離：取得はすべて `user_id=current_user.id` で絞り、他人の ID は 404
 - CSRF は Flask-WTF の `CSRFProtect`。フォームには `{{ csrf_token() }}` の hidden を入れる（テストでは `WTF_CSRF_ENABLED=False`）
 - ライブ表示（`setlists/show.html`）でテンポのある曲は曲名が `button.beat-toggle[data-bpm]` になり、`static/metronome.js` が赤い点（`.beat-dot`、光っている間は `.beat-on`）を 16 回光らせる。開始からの経過時間で拍を計算するのでずれない。点滅中は Wake Lock で画面を消さない。`.flash` はフラッシュメッセージ用のクラスなので使わない

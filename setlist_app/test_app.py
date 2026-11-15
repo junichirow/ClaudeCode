@@ -152,6 +152,41 @@ class SetlistAppTest(unittest.TestCase):
         self.assertIsNone(self.song_id("曲A改"))
         self.assertIn("まだ曲がありません", self.client.get("/songs/").get_data(as_text=True))
 
+    def test_歌詞を書いて保存できる(self):
+        self.register()
+        self.add_song("曲A")
+        song_id = self.song_id("曲A")
+        page = self.client.get("/songs/").get_data(as_text=True)
+        self.assertIn(f"/songs/{song_id}/lyrics", page)
+        self.assertIn("（未入力）", page)
+
+        res = self.client.post(f"/songs/{song_id}/lyrics",
+                               data={"lyrics": "1 番の歌詞\r\n\r\nサビ & <コーラス>\r\n"})
+        self.assertEqual(res.status_code, 302)
+        with self.app.app_context():
+            self.assertEqual(db.session.get(Song, song_id).lyrics, "1 番の歌詞\n\nサビ & <コーラス>")
+
+        page = self.client.get(f"/songs/{song_id}/lyrics").get_data(as_text=True)
+        self.assertIn("1 番の歌詞\n\nサビ &amp; &lt;コーラス&gt;", page)  # エスケープされて表示される
+        self.assertNotIn("（未入力）", self.client.get("/songs/").get_data(as_text=True))
+
+    def test_ライブ表示で歌詞を開ける(self):
+        self.register()
+        self.add_song("曲A")
+        self.add_song("曲B")
+        self.client.post(f"/songs/{self.song_id('曲A')}/lyrics", data={"lyrics": "1 番\n<サビ>"})
+        setlist_id = self.add_setlist("ワンマン")
+        for title in ("曲A", "曲B"):
+            self.client.post(f"/setlists/{setlist_id}/items/add", data={"song_id": self.song_id(title)})
+        page = self.client.get(f"/setlists/{setlist_id}").get_data(as_text=True)
+        # 歌詞のある曲 A にだけ「歌詞」ボタンが付く
+        self.assertEqual(page.count('<details class="lyrics">'), 1)
+        self.assertIn('<div class="lyrics-text">1 番\n&lt;サビ&gt;</div>', page)
+        self.assertLess(page.index('<span class="live-title">曲A'), page.index("lyrics-text"))
+        self.assertLess(page.index("lyrics-text"), page.index('<span class="live-title">曲B'))
+        # 印刷には歌詞を入れない
+        self.assertNotIn("サビ", self.client.get(f"/setlists/{setlist_id}/print").get_data(as_text=True))
+
     def test_演奏時間の形式が違うと登録できない(self):
         self.register()
         res = self.add_song("曲A", "4分35秒")
@@ -180,6 +215,7 @@ class SetlistAppTest(unittest.TestCase):
             song = db.session.get(Song, 1)
             self.assertEqual(song.title, "既存の曲")
             self.assertIsNone(song.bpm)
+            self.assertEqual(song.lyrics, "")
             db.engine.dispose()
 
     def test_曲名は必須(self):
@@ -261,6 +297,8 @@ class SetlistAppTest(unittest.TestCase):
         self.assertNotIn("アリスのライブ", bob.get("/setlists/").get_data(as_text=True))
         self.assertEqual(bob.get(f"/songs/{alice_song}/edit").status_code, 404)
         self.assertEqual(bob.post(f"/songs/{alice_song}/delete").status_code, 404)
+        self.assertEqual(bob.get(f"/songs/{alice_song}/lyrics").status_code, 404)
+        self.assertEqual(bob.post(f"/songs/{alice_song}/lyrics", data={"lyrics": "x"}).status_code, 404)
         self.assertEqual(bob.get(f"/setlists/{alice_setlist}").status_code, 404)
         self.assertEqual(bob.get(f"/setlists/{alice_setlist}/print").status_code, 404)
         self.assertEqual(bob.post(f"/setlists/{alice_setlist}/delete").status_code, 404)

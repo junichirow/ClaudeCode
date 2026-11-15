@@ -22,6 +22,7 @@
         </div>
         <div class="actions">
           <a class="button" href="{{ url_for('songs.edit', song_id=song.id) }}">編集</a>
+          <a class="button" href="{{ url_for('songs.lyrics', song_id=song.id) }}">歌詞{% if not song.lyrics %}<span class="sub">（未入力）</span>{% endif %}</a>
           <form method="post" action="{{ url_for('songs.delete', song_id=song.id) }}"
                 onsubmit="return confirm('この曲を削除しますか？セットリストからも消えます')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
