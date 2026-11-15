@@ -29,14 +29,17 @@
         {% for item in setlist.items %}
           {% set song = item.song %}
           <li>
+            {# 1 行目：番号と曲名、2 行目：キー・チューニング・テンポ・演奏時間、3 行目：メモ #}
             <span class="number">{{ loop.index }}</span>
             <span class="title">{{ song.title }}</span>
-            <span class="detail">
-              {% if song.key %}<span>{{ song.key }}</span>{% endif %}
-              {% if song.tuning %}<span>{{ song.tuning }}</span>{% endif %}
-              {% if song.bpm %}<span>♩={{ song.bpm }}</span>{% endif %}
-              {% if song.duration_seconds is not none %}<span>{{ song.duration_seconds|duration }}</span>{% endif %}
-            </span>
+            {% if song.key or song.tuning or song.bpm or song.duration_seconds is not none %}
+              <span class="detail">
+                {%- if song.key %}<span>{{ song.key }}</span>{% endif %}
+                {%- if song.tuning %}<span>{{ song.tuning }}</span>{% endif %}
+                {%- if song.bpm %}<span>♩={{ song.bpm }}</span>{% endif %}
+                {%- if song.duration_seconds is not none %}<span>{{ song.duration_seconds|duration }}</span>{% endif -%}
+              </span>
+            {% endif %}
             {% if song.memo %}<span class="memo">{{ song.memo }}</span>{% endif %}
           </li>
         {% endfor %}

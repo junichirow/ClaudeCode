@@ -312,10 +312,25 @@ class SetlistAppTest(unittest.TestCase):
     def test_曲が多いと印刷の文字を小さくする(self):
         self.register()
         setlist_id = self.add_setlist("フェス")
-        for i in range(21):
+        expected = {9: "size-large", 10: "size-medium", 13: "size-medium",
+                    14: "size-small", 18: "size-small", 19: "size-xsmall"}
+        for i in range(1, 20):
             self.add_song(f"曲{i}")
             self.client.post(f"/setlists/{setlist_id}/items/add", data={"song_id": self.song_id(f"曲{i}")})
-        self.assertIn("size-small", self.client.get(f"/setlists/{setlist_id}/print").get_data(as_text=True))
+            if i in expected:
+                page = self.client.get(f"/setlists/{setlist_id}/print").get_data(as_text=True)
+                self.assertIn(expected[i], page, f"{i} 曲")
+
+    def test_メモのある曲は印刷の高さを多めに数える(self):
+        self.register()
+        setlist_id = self.add_setlist("ワンマン")
+        for i in range(1, 8):
+            self.add_song(f"曲{i}", memo="カポ2")
+            self.client.post(f"/setlists/{setlist_id}/items/add", data={"song_id": self.song_id(f"曲{i}")})
+        # メモなしなら 7 曲はいちばん大きい文字だが、メモ付き 7 曲は 9.1 曲分なので 1 段小さくなる
+        page = self.client.get(f"/setlists/{setlist_id}/print").get_data(as_text=True)
+        self.assertIn("size-medium", page)
+        self.assertLess(page.index("曲1"), page.index('<span class="memo">カポ2</span>'))
 
     # --- CSV ---
 

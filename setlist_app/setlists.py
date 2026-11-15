@@ -86,13 +86,31 @@ def show(setlist_id):
     return render_template("setlists/show.html", setlist=setlist)
 
 
+def print_size(items):
+    """曲が多いほど印刷の文字を小さくして、A4 1 枚に収まりやすくする。
+
+    1 曲は「曲名・キーなど・メモ」の最大 3 行。メモの無い曲を 1 として、
+    メモは 1 行につき 0.3 曲分の高さとして数える（A4 に実測した比率）。
+    しきい値は実測した上限（10 / 14 / 19 曲）より 1 曲少なくし、長い曲名の折り返し分の余裕を残す。
+    """
+    amount = sum(
+        1 + (0.3 * (item.song.memo.count("\n") + 1) if item.song.memo else 0)
+        for item in items
+    )
+    if amount <= 9:
+        return "large"
+    if amount <= 13:
+        return "medium"
+    if amount <= 18:
+        return "small"
+    return "xsmall"
+
+
 @bp.route("/<int:setlist_id>/print")
 def print_view(setlist_id):
     """印刷用の画面（白い紙に黒い文字。ブラウザの印刷から PDF にも保存できる）"""
     setlist = get_own_setlist(setlist_id)
-    # 曲が多いほど文字を小さくして、A4 1 枚に収まりやすくする
-    count = len(setlist.items)
-    size = "large" if count <= 12 else "medium" if count <= 20 else "small"
+    size = print_size(setlist.items)
     return render_template("setlists/print.html", setlist=setlist, size=size)
 
 
