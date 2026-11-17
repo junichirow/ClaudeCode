@@ -48,6 +48,29 @@ def add_missing_columns():
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {column_type}"))
 
 
+def enable_row_level_security():
+    """PostgreSQL（本番の Supabase）では、アプリのテーブルすべてで RLS を有効にする。
+
+    Supabase は public スキーマのテーブルを REST API で公開するため、RLS が無効だと
+    anon key だけで誰でも読み書きできてしまう。ポリシーは作らないので API からは何もできない。
+    アプリは postgres ユーザーで直接つないでいて RLS の対象外なので、動作には影響しない。
+    """
+    if db.engine.dialect.name != "postgresql":
+        return
+    with db.engine.begin() as conn:
+        for table in db.metadata.sorted_tables:
+            enabled = conn.execute(
+                text(
+                    "SELECT c.relrowsecurity FROM pg_class c"
+                    " JOIN pg_namespace n ON n.oid = c.relnamespace"
+                    " WHERE n.nspname = 'public' AND c.relname = :name"
+                ),
+                {"name": table.name},
+            ).scalar()
+            if enabled is False:
+                conn.execute(text(f'ALTER TABLE public."{table.name}" ENABLE ROW LEVEL SECURITY'))
+
+
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -126,6 +149,7 @@ def create_app(test_config=None):
     with app.app_context():
         db.create_all()
         add_missing_columns()
+        enable_row_level_security()
 
     return app
 

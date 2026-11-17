@@ -43,6 +43,7 @@ cd setlist_app && python -m unittest -v   # テスト
 - `DATABASE_URL` が無ければ `setlist_app/setlist.db`（SQLite、`.gitignore` 済み）。あれば `normalize_database_url()` で `postgres://` / `postgresql://` を `postgresql+psycopg://`（psycopg 3）に変換
 - 本番の Supabase は **Session pooler（ポート 5432）** の接続文字列を使う。直接接続は IPv6 専用で Render から届かず、Transaction pooler（6543）は psycopg のプリペアドステートメントと相性が悪い
 - テーブルは `db.create_all()` で作成（マイグレーションの仕組みは無い）。後から足した列は `app.py` の `ADDED_COLUMNS` に書くと、起動時に `add_missing_columns()` が無ければ `ALTER TABLE ... ADD COLUMN` する（本番 DB にも自動で反映）。列の削除・型変更は手で直す必要がある
+- PostgreSQL のときは起動時に `enable_row_level_security()` が全テーブルの RLS を有効にする（ポリシーは作らない）。Supabase は public スキーマを REST API で公開するので、RLS が無効だと anon key で誰でも読み書きできてしまうため。アプリは postgres ユーザーで直接つなぐので RLS の影響を受けない。新しいテーブルも `db.metadata` にあれば自動で対象になる
 - 機能ごとに Blueprint：`auth.py` / `songs.py` / `setlists.py` / `export.py`。モデルは `models.py`、演奏時間の変換は `durations.py`（DB には秒で保存）
 - 歌詞は `Song.lyrics`（Text）。曲の一覧の「歌詞」ボタンから `/songs/<id>/lyrics` の画面で書く（曲の編集フォームとは別。改行は `\n` にそろえて保存）。ライブ表示では歌詞のある曲に `<details class="lyrics">` の「歌詞」ボタンが付き、その場で開閉する（JS なし）。CSV と印刷には含めない
 - 新規ユーザー登録は無効。`/register` は GET・POST とも `/login` へリダイレクトするだけで、ユーザーは作られない（ログイン画面の登録リンクも削除済み）。ユーザーを足すときは DB に直接 `User` を作る（パスワードは `generate_password_hash` でハッシュ化。テストの `create_user()` と同じ）
