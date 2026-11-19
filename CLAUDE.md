@@ -49,7 +49,8 @@ cd setlist_app && python -m unittest -v   # テスト
 - 新規ユーザー登録は無効。`/register` は GET・POST とも `/login` へリダイレクトするだけで、ユーザーは作られない（ログイン画面の登録リンクも削除済み）。ユーザーを足すときは DB に直接 `User` を作る（パスワードは `generate_password_hash` でハッシュ化。テストの `create_user()` と同じ）
 - ユーザーごとの分離：取得はすべて `user_id=current_user.id` で絞り、他人の ID は 404
 - CSRF は Flask-WTF の `CSRFProtect`。フォームには `{{ csrf_token() }}` の hidden を入れる（テストでは `WTF_CSRF_ENABLED=False`）
-- ライブ表示（`setlists/show.html`）でテンポのある曲は曲名が `button.beat-toggle[data-bpm]` になり、`static/metronome.js` が赤い点（`.beat-dot`、光っている間は `.beat-on`）を 16 回光らせる。開始からの経過時間で拍を計算するのでずれない。点滅中は Wake Lock で画面を消さない。`.flash` はフラッシュメッセージ用のクラスなので使わない
+- ライブ表示（`setlists/show.html`）でテンポのある曲は曲名が `button.beat-toggle[data-bpm]` になり、`static/metronome.js` が赤い点（`.beat-dot`、光っている間は `.beat-on`）を 16 回光らせ、同時に Web Audio API で「ピッ」（1000Hz のサイン波）を鳴らす。音は 16 回分を AudioContext の時計でまとめて予約し、光り始めも同じだけ（`LEAD_SEC`）遅らせてそろえる。光は開始からの経過時間で拍を計算するのでずれない。テンポのある曲が入っているセットリストだけ、上部に音のオン／オフボタン（`button.sound-toggle`）が出る。状態は localStorage（`metronome-sound`）に保存し、点滅中に切り替えると残りの拍の音を予約し直す／取り消す。`.flash` はフラッシュメッセージ用のクラスなので使わない
+- ライブ表示を開いている間は `static/keep-awake.js` が Screen Wake Lock で画面をスリープさせない（テンポの有無に関係なく、ページを開いている間ずっと）。別アプリに切り替えると OS が解除するので、戻ったときとタップのたびにかけ直す。非対応ブラウザでは何もしない
 - 印刷・PDF は `/setlists/<id>/print`（`setlists/print.html` + `static/print.css`、base.html を継承しない単独ページ）。PDF はブラウザの印刷の「PDF に保存」に任せ、サーバー側で PDF は作らない。1 曲を「1 行目に曲名、2 行目にキー・チューニング・テンポ・演奏時間、3 行目にメモ」で並べ、曲数とメモの行数から文字サイズを 4 段階に切り替える（`setlists.py` の `print_size()`。しきい値と比率は A4 1 枚に収まる曲数を Chrome で実測して決めた）
 - 二重送信対策：`base.html` で読む `static/submit-once.js` が、1回送信したフォームを再送信できなくしてボタンを無効にする（全ページ共通）。さらに `/songs/new` は全項目が同じ曲がすでにあれば作らない（`songs.py` の `_find_same_song()`）
 - 曲順は `SetlistItem.position`。並べ替えは ↑↓ ボタン（POST）で隣と入れ替え、削除時は `Setlist.renumber()` で振り直す

@@ -356,6 +356,25 @@ class SetlistAppTest(unittest.TestCase):
         self.assertIn("metronome.js", page)
         self.assertEqual(self.client.get("/static/metronome.js").status_code, 200)
 
+    def test_ライブ表示では画面を消さないスクリプトを読む(self):
+        self.register()
+        self.add_song("曲B")
+        setlist_id = self.add_setlist("ワンマン")
+        self.client.post(f"/setlists/{setlist_id}/items/add", data={"song_id": self.song_id("曲B")})
+        self.assertIn("keep-awake.js", self.client.get(f"/setlists/{setlist_id}").get_data(as_text=True))
+        self.assertEqual(self.client.get("/static/keep-awake.js").status_code, 200)
+
+    def test_テンポのある曲があるときだけ音の切り替えボタンが出る(self):
+        self.register()
+        self.add_song("曲A", bpm="128")
+        self.add_song("曲B")
+        with_bpm = self.add_setlist("テンポあり")
+        self.client.post(f"/setlists/{with_bpm}/items/add", data={"song_id": self.song_id("曲A")})
+        without_bpm = self.add_setlist("テンポなし")
+        self.client.post(f"/setlists/{without_bpm}/items/add", data={"song_id": self.song_id("曲B")})
+        self.assertIn("sound-toggle", self.client.get(f"/setlists/{with_bpm}").get_data(as_text=True))
+        self.assertNotIn("sound-toggle", self.client.get(f"/setlists/{without_bpm}").get_data(as_text=True))
+
     # --- 印刷 ---
 
     def test_印刷用の画面(self):

@@ -168,6 +168,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
   vertical-align: 0.05em;
 }
 .beat-toggle[aria-pressed="true"] .beat-dot { background: #4a0f0f; border-color: #8a1f1f; }
+.sound-toggle { margin-top: 0.5rem; }
+.sound-toggle[aria-pressed="false"] { color: var(--muted, inherit); opacity: 0.7; }
 .beat-dot.beat-on {
   background: #ff2020 !important;
   border-color: #ff6a6a !important;

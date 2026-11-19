@@ -14,6 +14,10 @@
   {% if setlist.missing_duration_count %}
     <p class="sub">※ 演奏時間が未入力の曲が {{ setlist.missing_duration_count }} 曲あり、合計に含まれていません</p>
   {% endif %}
+  {% if setlist.items|selectattr('song.bpm')|list %}
+    {# テンポの点滅に合わせて鳴るクリック音のオン／オフ（static/metronome.js。表示も JS で切り替える） #}
+    <button type="button" class="button sound-toggle" aria-pressed="true">🔊 音あり</button>
+  {% endif %}
 </div>
 
 {% if setlist.items %}
@@ -23,7 +27,7 @@
         <span class="number">{{ loop.index }}</span>
         <div class="live-body">
           {% if item.song.bpm %}
-            {# タップするとテンポに合わせて赤い点が 16 回光る（static/metronome.js） #}
+            {# タップするとテンポに合わせて赤い点が 16 回光り、音ありならクリック音も鳴る（static/metronome.js） #}
             <button type="button" class="live-title beat-toggle" data-bpm="{{ item.song.bpm }}"
                     aria-pressed="false">{{ item.song.title }}<span class="beat-dot" aria-hidden="true"></span></button>
           {% else %}
@@ -59,4 +63,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="{{ url_for('static', filename='metronome.js') }}"></script>
+<script src="{{ url_for('static', filename='keep-awake.js') }}"></script>
 {% endblock %}
