@@ -168,6 +168,19 @@ class SetlistAppTest(unittest.TestCase):
         self.assertIsNone(self.song_id("曲A改"))
         self.assertIn("まだ曲がありません", self.client.get("/songs/").get_data(as_text=True))
 
+    def test_同じ内容を2回送信しても曲は1つ(self):
+        self.register()
+        self.add_song("曲A", "4:35", key="Em")
+        self.add_song("曲A", "4:35", key="Em")  # 保存ボタンの二重送信
+        self.add_song("曲A", "4:35", key="G")   # 内容が違えば別の曲として登録できる
+        with self.app.app_context():
+            keys = db.session.scalars(db.select(Song.key).filter_by(title="曲A").order_by(Song.id)).all()
+        self.assertEqual(keys, ["Em", "G"])
+
+    def test_フォームの二重送信を防ぐスクリプトを読み込む(self):
+        self.register()
+        self.assertIn("submit-once.js", self.client.get("/songs/new").get_data(as_text=True))
+
     def test_歌詞を書いて保存できる(self):
         self.register()
         self.add_song("曲A")

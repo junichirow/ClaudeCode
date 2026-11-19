@@ -61,6 +61,21 @@ def _apply(song, values):
     song.memo = values["memo"]
 
 
+def _find_same_song(song):
+    """ログイン中のユーザーの曲から、入力内容がすべて同じ曲を探す"""
+    return db.session.scalar(
+        db.select(Song).filter_by(
+            user_id=current_user.id,
+            title=song.title,
+            key=song.key,
+            tuning=song.tuning,
+            bpm=song.bpm,
+            duration_seconds=song.duration_seconds,
+            memo=song.memo,
+        ).limit(1)
+    )
+
+
 @bp.route("/")
 def index():
     songs = db.session.scalars(
@@ -79,6 +94,10 @@ def new():
         else:
             song = Song(user_id=current_user.id)
             _apply(song, values)
+            if _find_same_song(song):
+                # 保存ボタンの二重送信などで同じ内容が届いたときは、2つ目を作らない
+                flash(f"「{song.title}」はすでに登録されています", "success")
+                return redirect(url_for("songs.index"))
             db.session.add(song)
             db.session.commit()
             flash(f"「{song.title}」を登録しました", "success")

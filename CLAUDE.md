@@ -51,6 +51,7 @@ cd setlist_app && python -m unittest -v   # テスト
 - CSRF は Flask-WTF の `CSRFProtect`。フォームには `{{ csrf_token() }}` の hidden を入れる（テストでは `WTF_CSRF_ENABLED=False`）
 - ライブ表示（`setlists/show.html`）でテンポのある曲は曲名が `button.beat-toggle[data-bpm]` になり、`static/metronome.js` が赤い点（`.beat-dot`、光っている間は `.beat-on`）を 16 回光らせる。開始からの経過時間で拍を計算するのでずれない。点滅中は Wake Lock で画面を消さない。`.flash` はフラッシュメッセージ用のクラスなので使わない
 - 印刷・PDF は `/setlists/<id>/print`（`setlists/print.html` + `static/print.css`、base.html を継承しない単独ページ）。PDF はブラウザの印刷の「PDF に保存」に任せ、サーバー側で PDF は作らない。1 曲を「1 行目に曲名、2 行目にキー・チューニング・テンポ・演奏時間、3 行目にメモ」で並べ、曲数とメモの行数から文字サイズを 4 段階に切り替える（`setlists.py` の `print_size()`。しきい値と比率は A4 1 枚に収まる曲数を Chrome で実測して決めた）
+- 二重送信対策：`base.html` で読む `static/submit-once.js` が、1回送信したフォームを再送信できなくしてボタンを無効にする（全ページ共通）。さらに `/songs/new` は全項目が同じ曲がすでにあれば作らない（`songs.py` の `_find_same_song()`）
 - 曲順は `SetlistItem.position`。並べ替えは ↑↓ ボタン（POST）で隣と入れ替え、削除時は `Setlist.renumber()` で振り直す
 - Render 上（環境変数 `RENDER` あり）では `ProxyFix` で HTTPS を判別し、クッキーを Secure にする。`after_request` で `X-Frame-Options` などのセキュリティヘッダーを付け、`MAX_CONTENT_LENGTH` は 1MB
 - Render の Web サービスは `render.yaml` ではなくダッシュボードで手動作成（Root Directory `setlist_app`、Python は `.python-version` で 3.13）
