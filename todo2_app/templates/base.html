@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#4f8a5b">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <title>{% block title %}{% endblock %}かぞくのタスク</title>
+  <title>{% block title %}{% endblock %}家族のタスク</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
@@ -17,7 +17,7 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="{{ url_for('main.index') }}">✅ かぞくのタスク</a>
+    <a class="brand" href="{{ url_for('main.index') }}">✅ 家族のタスク</a>
     {% if session.logged_in %}
       <nav class="nav">
         <a href="{{ url_for('main.index') }}">リスト</a>

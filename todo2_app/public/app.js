@@ -48,7 +48,7 @@ document.addEventListener("submit", async (event) => {
   } catch (e) {
     item.classList.toggle("done", !done);
     button.setAttribute("aria-pressed", String(!done));
-    alert("保存できませんでした。通信を確認してもう一度押してください。");
+    alert("保存できませんでした。通信状況を確認して、もう一度お試しください。");
   }
 });
 

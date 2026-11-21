@@ -15,7 +15,7 @@
         {% endfor %}
       </ul>
     {% else %}
-      <p class="muted">まだリストがありません。下から作ってください。</p>
+      <p class="muted">リストはまだありません。下のフォームから作成してください。</p>
     {% endif %}
   </section>
 
@@ -23,18 +23,18 @@
     <h2>新しいリスト</h2>
     <form method="post" action="{{ url_for('main.create_list') }}" class="stack">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="text" name="name" maxlength="100" placeholder="名前（例：たろうの朝のしたく）">
+      <input type="text" name="name" maxlength="100" placeholder="名前（例：太郎の朝の支度、週末の買い物）">
       <label class="field">
         <span>テンプレート</span>
         <select name="template_id">
           <option value="">使わない（空のリスト）</option>
           {% for t in templates %}
-            <option value="{{ t.id }}">{{ t.name }}（{{ t.items|length }}こ）</option>
+            <option value="{{ t.id }}">{{ t.name }}（{{ t.items|length }}件）</option>
           {% endfor %}
         </select>
       </label>
       <p class="hint">テンプレートを選んで名前を空にすると、テンプレートの名前になります。</p>
-      <button type="submit" class="primary">作る</button>
+      <button type="submit" class="primary">作成</button>
     </form>
   </section>
 {% endblock %}

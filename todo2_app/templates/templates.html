@@ -3,20 +3,20 @@
 {% block content %}
   <section class="card">
     <h1>テンプレート</h1>
-    <p class="muted">「子供の朝のしたく」のように、くり返し使うリストのひな形です。</p>
+    <p class="muted">「子供の朝の支度」のように、繰り返し使うリストのひな形です。</p>
     {% if templates %}
       <ul class="list-links">
         {% for t in templates %}
           <li>
             <a href="{{ url_for('main.show_template', template_id=t.id) }}">
               <span class="list-name">{{ t.name }}</span>
-              <span class="count">{{ t.items|length }}こ</span>
+              <span class="count">{{ t.items|length }}件</span>
             </a>
           </li>
         {% endfor %}
       </ul>
     {% else %}
-      <p class="muted">まだテンプレートがありません。</p>
+      <p class="muted">テンプレートはまだありません。</p>
     {% endif %}
   </section>
 
@@ -24,8 +24,8 @@
     <h2>新しいテンプレート</h2>
     <form method="post" action="{{ url_for('main.create_template') }}" class="inline-form">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <input type="text" name="name" maxlength="100" placeholder="名前（例：子供の朝のしたく）" required>
-      <button type="submit" class="primary">作る</button>
+      <input type="text" name="name" maxlength="100" placeholder="名前（例：子供の朝の支度）" required>
+      <button type="submit" class="primary">作成</button>
     </form>
   </section>
 {% endblock %}

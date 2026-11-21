@@ -92,7 +92,7 @@ def login():
     if request.method == "POST":
         ip = _client_ip()
         if _too_many_failures(ip):
-            flash("まちがいが多いので、しばらく（15 分ほど）待ってからもう一度ためしてください", "error")
+            flash("入力ミスが続いたため、ログインを一時的に停止しています。15 分ほど待ってから再度お試しください", "error")
             return render_template("login.html"), 429
         password = request.form.get("password", "")
         expected = current_app.config["FAMILY_PASSWORD"]
@@ -166,7 +166,7 @@ def create_list():
     template = _get_or_404(Template, template_id) if template_id else None
     name = _clean(request.form.get("name"), NAME_MAX) or (template.name if template else "")
     if not name:
-        flash("リストの名前を入れてください", "error")
+        flash("リスト名を入力してください", "error")
         return redirect(url_for("main.index"))
     task_list = _create_list_from(name, template)
     return redirect(url_for("main.show_list", list_id=task_list.id))
@@ -209,7 +209,7 @@ def add_tasks(list_id):
 
 @bp.route("/lists/<int:list_id>/reset", methods=["POST"])
 def reset_list(list_id):
-    """全部のタスクを未完了に戻す（毎日くり返す「朝のしたく」などに使う）"""
+    """全部のタスクを未完了に戻す（毎日繰り返す「朝の支度」などに使う）"""
     task_list = _get_or_404(TaskList, list_id)
     for task in task_list.tasks:
         task.done = False
@@ -235,7 +235,7 @@ def save_as_template(list_id):
         template.items.append(TemplateItem(title=task.title, position=i))
     db.session.add(template)
     db.session.commit()
-    flash(f"テンプレート「{name}」を作りました", "success")
+    flash(f"テンプレート「{name}」を作成しました", "success")
     return redirect(url_for("main.show_template", template_id=template.id))
 
 
@@ -279,7 +279,7 @@ def templates():
 def create_template():
     name = _clean(request.form.get("name"), NAME_MAX)
     if not name:
-        flash("テンプレートの名前を入れてください", "error")
+        flash("テンプレート名を入力してください", "error")
         return redirect(url_for("main.templates"))
     template = Template(name=name)
     db.session.add(template)

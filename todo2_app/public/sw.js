@@ -1,7 +1,7 @@
 // ホーム画面のアプリとして入れられるようにするための Service Worker。
 // CSS・JS・アイコンはキャッシュから速く出し、裏で新しいものに入れ替える。
 // 画面（HTML）はいつもネットから取る（家族の変更をすぐ見るため）。つながらないときだけお知らせを出す。
-const CACHE = "family-tasks-v1";
+const CACHE = "family-tasks-v2";
 const ASSETS = ["/style.css", "/app.js", "/icons/icon-192.png"];
 
 self.addEventListener("install", (event) => {
@@ -22,8 +22,8 @@ const OFFLINE_HTML = `<!doctype html><html lang="ja"><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>オフライン</title>
 <body style="font-family:sans-serif;padding:2rem;text-align:center">
-<p>インターネットにつながっていません。</p>
-<p><button onclick="location.reload()">もう一度</button></p></body></html>`;
+<p>インターネットに接続されていません。</p>
+<p><button onclick="location.reload()">再読み込み</button></p></body></html>`;
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
