@@ -74,6 +74,9 @@ cd todo2_app && python -m unittest -v     # テスト
 - 本番 DB は Supabase の **Transaction pooler（6543）**。サーバーレスなので `NullPool`、pooler 用に psycopg の `prepare_threshold=None` でプリペアドステートメントを切る（`webapp.py` の `engine_options()`。接続文字列が PostgreSQL のときだけ付け、テストで SQLite に差しかえたときは付けない）。setlist_app と同じく起動時に `create_all()` と RLS の有効化をする
 - 静的ファイルは `public/`（Vercel は CDN から配信）。Flask も `static_folder="public", static_url_path=""` で同じ URL（`/style.css` など）で出す。`manifest.webmanifest` と `sw.js` はスコープのためサイトのルートに置く
 - 完了の切り替えは `public/app.js` が fetch（`Accept: application/json` と `X-CSRFToken`）で送り、その場で `.task.done` を付け外しする。二重線は CSS の背景グラデーションで描く
+- 公開アドレス：https://claude-code-psi-two.vercel.app/ （Vercel のプロジェクト名は `claude-code`）
+- Vercel のビルドは `app.py` の `app = create_app()` という形を静的に探す。try で囲む・別の関数を通すとビルドが `FLASK_ENTRYPOINT_NOT_FOUND` で失敗するので、`app.py` はこの形のまま変えない
+- ログは Vercel CLI（`brew install --cask vercel`）で `vercel logs --scope junichirow --project claude-code`（Hobby プランは直近 30 分ほどしか残らない）。ビルドログは `vercel inspect <デプロイの URL> --logs`
 - `vercel.json` で関数のリージョンをソウル（`icn1`）にしている（本番の Supabase がソウル `ap-northeast-2` のため。DB と同じ場所に置く）。Vercel のプロジェクトはダッシュボードで作成（Root Directory `todo2_app`）
 
 ## todo_app の構成
