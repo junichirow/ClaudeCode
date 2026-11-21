@@ -30,7 +30,8 @@ def normalize_database_url(url):
 
 
 def engine_options(database_url):
-    if not database_url:
+    """PostgreSQL（Supabase）につなぐときの接続設定。SQLite のときは何も足さない"""
+    if not database_url or not database_url.startswith(("postgres://", "postgresql")):
         return {}
     # Vercel はリクエストごとに関数が立ち上がる（サーバーレス）ので接続を使い回さない。
     # Supabase の Transaction pooler（6543）はプリペアドステートメントに対応しないので切る。
@@ -86,7 +87,6 @@ def create_app(test_config=None):
             if database_url
             else f"sqlite:///{BASE_DIR / 'todo2.db'}"
         ),
-        SQLALCHEMY_ENGINE_OPTIONS=engine_options(database_url),
         # ホーム画面から開くたびにログインしなくて済むよう、ログインは 1 年もたせる
         PERMANENT_SESSION_LIFETIME=timedelta(days=365),
         SESSION_COOKIE_SECURE=on_vercel,
@@ -97,6 +97,10 @@ def create_app(test_config=None):
     )
     if test_config:
         app.config.update(test_config)
+    # 接続設定は、テストで差しかえた後の実際に使う DB に合わせて決める
+    app.config.setdefault(
+        "SQLALCHEMY_ENGINE_OPTIONS", engine_options(app.config["SQLALCHEMY_DATABASE_URI"])
+    )
 
     for key in ("SECRET_KEY", "FAMILY_PASSWORD"):
         if not app.config[key]:

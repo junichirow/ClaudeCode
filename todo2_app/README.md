@@ -24,7 +24,7 @@ cd todo2_app && python -m unittest -v      # テスト
 
 ### 1. Supabase でデータベースを用意する
 
-1. https://supabase.com で新しいプロジェクトを作る（Region は **Northeast Asia (Tokyo)**）。データベースのパスワードは控えておく
+1. https://supabase.com で新しいプロジェクトを作る（いまの本番は **Northeast Asia (Seoul)**。別のリージョンにしたら `vercel.json` の `regions` も近い所に合わせる）。データベースのパスワードは控えておく
 2. 画面上の **Connect** → **Connection String** で **Transaction pooler**（ポート **6543**）の URI をコピーする
    - `postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-ap-northeast-1.pooler.supabase.com:6543/postgres`
    - `[YOUR-PASSWORD]` を控えたパスワードに置きかえる
@@ -47,7 +47,7 @@ cd todo2_app && python -m unittest -v      # テスト
 
 以後は `main` へのプッシュで自動的にデプロイし直される。環境変数を変えたときは、Vercel の Deployments から **Redeploy** すると反映される。
 
-`vercel.json` で関数を東京リージョン（`hnd1`）で動かし、Supabase（東京）との行き来を速くしている。
+`vercel.json` で関数をソウルリージョン（`icn1`）で動かし、Supabase（ソウル）との行き来を速くしている。
 
 ### 3. スマホのホーム画面に追加する
 

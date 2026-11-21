@@ -326,6 +326,9 @@ class 設定Test(unittest.TestCase):
         opts = engine_options("postgresql://u:p@h:6543/postgres?sslmode=verify-full")
         self.assertNotIn("sslmode", opts["connect_args"])
         self.assertEqual(engine_options(None), {})
+        self.assertEqual(engine_options("sqlite:///x.db"), {})
+        opts = engine_options("postgresql+psycopg://u:p@h:6543/postgres")
+        self.assertEqual(opts["connect_args"]["sslmode"], "require")
 
 
 if __name__ == "__main__":

@@ -71,10 +71,10 @@ cd todo2_app && python -m unittest -v     # テスト
   - 入力ミスは `LoginFailure` 表に記録し、同じ IP で 15 分に 10 回で 429（サーバーレスでメモリに持てないので DB）
   - Vercel 上では `SECRET_KEY` 32 文字未満・`FAMILY_PASSWORD` 8 文字未満だと起動時に例外
   - CSP は `script-src 'self'` などで厳しくしているので、テンプレートにインラインの `<script>` や `style=` を書かない
-- 本番 DB は Supabase の **Transaction pooler（6543）**。サーバーレスなので `NullPool`、pooler 用に psycopg の `prepare_threshold=None` でプリペアドステートメントを切る（`webapp.py` の `engine_options()`）。setlist_app と同じく起動時に `create_all()` と RLS の有効化をする
+- 本番 DB は Supabase の **Transaction pooler（6543）**。サーバーレスなので `NullPool`、pooler 用に psycopg の `prepare_threshold=None` でプリペアドステートメントを切る（`webapp.py` の `engine_options()`。接続文字列が PostgreSQL のときだけ付け、テストで SQLite に差しかえたときは付けない）。setlist_app と同じく起動時に `create_all()` と RLS の有効化をする
 - 静的ファイルは `public/`（Vercel は CDN から配信）。Flask も `static_folder="public", static_url_path=""` で同じ URL（`/style.css` など）で出す。`manifest.webmanifest` と `sw.js` はスコープのためサイトのルートに置く
 - 完了の切り替えは `public/app.js` が fetch（`Accept: application/json` と `X-CSRFToken`）で送り、その場で `.task.done` を付け外しする。二重線は CSS の背景グラデーションで描く
-- `vercel.json` で関数のリージョンを東京（`hnd1`）にしている。Vercel のプロジェクトはダッシュボードで作成（Root Directory `todo2_app`）
+- `vercel.json` で関数のリージョンをソウル（`icn1`）にしている（本番の Supabase がソウル `ap-northeast-2` のため。DB と同じ場所に置く）。Vercel のプロジェクトはダッシュボードで作成（Root Directory `todo2_app`）
 
 ## todo_app の構成
 
