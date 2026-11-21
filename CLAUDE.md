@@ -58,6 +58,9 @@ cd todo2_app && python -m unittest -v     # テスト
 - ライブ表示（`setlists/show.html`）でテンポのある曲は曲名が `button.beat-toggle[data-bpm]` になり、`static/metronome.js` が赤い点（`.beat-dot`、光っている間は `.beat-on`）を 16 回光らせ、同時に Web Audio API で「ピッ」（1000Hz のサイン波）を鳴らす。音は 16 回分を AudioContext の時計でまとめて予約し、光り始めも同じだけ（`LEAD_SEC`）遅らせてそろえる。光は開始からの経過時間で拍を計算するのでずれない。テンポのある曲が入っているセットリストだけ、上部に音のオン／オフボタン（`button.sound-toggle`）が出る。状態は localStorage（`metronome-sound`）に保存し、点滅中に切り替えると残りの拍の音を予約し直す／取り消す。`.flash` はフラッシュメッセージ用のクラスなので使わない
 - ライブ表示を開いている間は `static/keep-awake.js` が Screen Wake Lock で画面をスリープさせない（テンポの有無に関係なく、ページを開いている間ずっと）。別アプリに切り替えると OS が解除するので、戻ったときとタップのたびにかけ直す。非対応ブラウザでは何もしない
 - 印刷・PDF は `/setlists/<id>/print`（`setlists/print.html` + `static/print.css`、base.html を継承しない単独ページ）。PDF はブラウザの印刷の「PDF に保存」に任せ、サーバー側で PDF は作らない。1 曲を「1 行目に曲名、2 行目にキー・チューニング・テンポ・演奏時間、3 行目にメモ」で並べ、曲数とメモの行数から文字サイズを 4 段階に切り替える（`setlists.py` の `print_size()`。しきい値と比率は A4 1 枚に収まる曲数を Chrome で実測して決めた）
+- ホーム画面に追加してアプリのように使える（PWA）。`static/manifest.webmanifest` と `static/sw.js` を、Service Worker のスコープのため `app.py` のルートでサイトのルート（`/manifest.webmanifest`・`/sw.js`）から出す。登録は `base.html` で読む `static/pwa.js`。アイコンは `static/icons/`（`icon.svg` が元。PNG は Chrome のヘッドレスで描き出した）
+  - `sw.js` は `/static/` をキャッシュ優先＋裏で更新、画面（HTML）はネット優先で、4 秒で返らない・つながらないときは前に開いたときの保存分を出す（ライブ会場で電波が弱くてもセットリストを見られるように）。ログインしていない画面では `pwa.js` が画面の保存分（`setlist-pages`）を消す（`body[data-logged-in]` で判別）
+  - `/static/` のファイルを足したり変えたりしたら、`sw.js` の `STATIC_CACHE` の番号を上げる
 - 二重送信対策：`base.html` で読む `static/submit-once.js` が、1回送信したフォームを再送信できなくしてボタンを無効にする（全ページ共通）。さらに `/songs/new` は全項目が同じ曲がすでにあれば作らない（`songs.py` の `_find_same_song()`）
 - 曲順は `SetlistItem.position`。並べ替えは ↑↓ ボタン（POST）で隣と入れ替え、削除時は `Setlist.renumber()` で振り直す
 - Render 上（環境変数 `RENDER` あり）では `ProxyFix` で HTTPS を判別し、クッキーを Secure にする。`after_request` で `X-Frame-Options` などのセキュリティヘッダーを付け、`MAX_CONTENT_LENGTH` は 1MB

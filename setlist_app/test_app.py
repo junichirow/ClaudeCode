@@ -435,6 +435,38 @@ class SetlistAppTest(unittest.TestCase):
         text = self.client.get("/export/setlists.csv").data.decode("utf-8-sig")
         self.assertIn("ワンマン,2026-12-01,下北沢,1,曲A,Em,,120,4:35", text)
 
+    # --- ホーム画面に追加（PWA） ---
+
+    def test_manifestとServiceWorkerはログインなしで取れる(self):
+        res = self.client.get("/manifest.webmanifest")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("application/manifest+json", res.content_type)
+        self.assertEqual(res.get_json(force=True)["display"], "standalone")
+        res.close()
+
+        res = self.client.get("/sw.js")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("javascript", res.content_type)
+        self.assertEqual(res.headers["Cache-Control"], "no-cache")
+        res.close()
+
+    def test_画面にmanifestとアイコンが入っている(self):
+        html = self.client.get("/login").get_data(as_text=True)
+        self.assertIn('rel="manifest" href="/manifest.webmanifest"', html)
+        self.assertIn("apple-touch-icon", html)
+        self.assertIn('data-logged-in="0"', html)
+        self.register()
+        html = self.client.get("/setlists/").get_data(as_text=True)
+        self.assertIn('data-logged-in="1"', html)
+
+    def test_manifestのアイコンが存在する(self):
+        import json
+        from pathlib import Path
+        static = Path(__file__).parent / "static"
+        manifest = json.loads((static / "manifest.webmanifest").read_text())
+        for icon in manifest["icons"]:
+            self.assertTrue((static / icon["src"].removeprefix("/static/")).exists(), icon["src"])
+
 
 class 本番設定Test(unittest.TestCase):
     """Render 上（環境変数 RENDER あり・HTTPS・CSRF 有効）と同じ条件で確認する"""
@@ -486,7 +518,6 @@ class 本番設定Test(unittest.TestCase):
     def test_大きすぎるリクエストは拒否(self):
         res = self.client.post("/login", data={"username": "x" * (2 * 1024 * 1024)})
         self.assertEqual(res.status_code, 413)
-
 
 class CSRFTest(unittest.TestCase):
     def test_トークンの無いPOSTは拒否(self):

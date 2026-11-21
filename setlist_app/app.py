@@ -146,6 +146,19 @@ def create_app(test_config=None):
             return redirect(url_for("setlists.index"))
         return redirect(url_for("auth.login"))
 
+    # ホーム画面に追加するための manifest と Service Worker。
+    # Service Worker が効く範囲は置いた場所より下だけなので、/static/ ではなくサイトのルートから出す
+    @app.route("/manifest.webmanifest")
+    def manifest():
+        return app.send_static_file("manifest.webmanifest")
+
+    @app.route("/sw.js")
+    def service_worker():
+        response = app.send_static_file("sw.js")
+        # 古い sw.js を使い続けないよう、毎回サーバーに確認させる
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
     with app.app_context():
         db.create_all()
         add_missing_columns()

@@ -5,9 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#111418">
   <title>{% block title %}{% endblock %}セットリスト管理</title>
+  {# ホーム画面に追加してアプリのように使うための設定（PWA） #}
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="{{ url_for('static', filename='icons/icon.svg') }}" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="セトリ">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-<body>
+<body data-logged-in="{{ '1' if current_user.is_authenticated else '0' }}">
   <header class="site-header">
     <a class="brand" href="{{ url_for('index') }}">🎸 セトリ</a>
     {% if current_user.is_authenticated %}
@@ -32,6 +40,7 @@
     {% block content %}{% endblock %}
   </main>
   <script src="{{ url_for('static', filename='submit-once.js') }}"></script>
+  <script src="{{ url_for('static', filename='pwa.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>
