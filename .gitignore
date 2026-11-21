@@ -27,3 +27,4 @@ htmlcov/
 # アプリのデータ
 todo_app/todo.db
 setlist_app/setlist.db
+todo2_app/todo2.db

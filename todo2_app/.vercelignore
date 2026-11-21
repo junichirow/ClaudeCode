@@ -1,0 +1,4 @@
+.env
+todo2.db
+__pycache__/
+test_app.py

@@ -1,0 +1,396 @@
+:root {
+  --bg: #f6f4ee;
+  --card: #ffffff;
+  --text: #2b2b2b;
+  --muted: #7a776f;
+  --line: #e3dfd4;
+  --accent: #4f8a5b;
+  --accent-dark: #3d6e47;
+  --danger: #c0473b;
+  --done: #9a968c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic", sans-serif;
+  font-size: 17px;
+  line-height: 1.5;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+a {
+  color: var(--accent-dark);
+}
+
+/* --- ヘッダー --- */
+
+.site-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: calc(0.75rem + env(safe-area-inset-top)) 1rem 0.75rem;
+  background: var(--accent);
+  color: #fff;
+}
+
+.brand {
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+  font-size: 1.1rem;
+}
+
+.nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.container {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.site-footer {
+  text-align: center;
+  padding: 0 1rem 2rem;
+}
+
+/* --- 共通 --- */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.card.narrow {
+  max-width: 360px;
+  margin: 2rem auto;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 0 0 0.75rem;
+  word-break: break-word;
+}
+
+h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+
+.muted,
+.hint {
+  color: var(--muted);
+}
+
+.hint {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.crumb {
+  margin: 0 0 0.25rem;
+}
+
+.flash {
+  padding: 0.6rem 0.9rem;
+  border-radius: 10px;
+  margin: 0 0 1rem;
+}
+
+.flash-success {
+  background: #e4f1e6;
+  color: #2f5a37;
+}
+
+.flash-error {
+  background: #f8e1de;
+  color: #8a2d24;
+}
+
+input[type="text"],
+input[type="password"],
+select,
+textarea {
+  width: 100%;
+  font: inherit;
+  /* iOS で入力欄を押したときに拡大されないよう 16px 以上にする */
+  font-size: 17px;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 2.8rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button:disabled {
+  opacity: 0.6;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.link-button {
+  border: none;
+  background: none;
+  color: var(--muted);
+  text-decoration: underline;
+  padding: 0.25rem;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.inline-form,
+.add-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  margin-top: 0.75rem;
+}
+
+.inline-form input,
+.add-form textarea {
+  flex: 1;
+  min-width: 0;
+}
+
+details.card summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+details.card > form {
+  margin-top: 0.75rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* --- リストの一覧 --- */
+
+.list-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list-links li + li {
+  border-top: 1px solid var(--line);
+}
+
+.list-links a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 0.25rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.list-name {
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.count {
+  color: var(--muted);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.list-links a.all-done .count::after {
+  content: " 🎉";
+}
+
+.title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+/* --- タスク --- */
+
+.tasks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.task {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.task .toggle-form {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 0.85rem 0.25rem;
+  font-size: 1.1rem;
+  white-space: normal;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.task-toggle:disabled {
+  opacity: 1;
+}
+
+.check {
+  flex: none;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.task-title {
+  word-break: break-word;
+}
+
+/* 終わったタスクは二重線で消す。text-decoration の double は線の間がせまく 1 本に見えるので、
+   背景のグラデーションで文字の中ほどに 2 本の線を描く（折り返した行にもそれぞれ引く） */
+.task.done .task-title {
+  color: var(--done);
+  background-image: linear-gradient(
+    transparent calc(50% - 0.22em),
+    var(--danger) calc(50% - 0.22em),
+    var(--danger) calc(50% - 0.12em),
+    transparent calc(50% - 0.12em),
+    transparent calc(50% + 0.08em),
+    var(--danger) calc(50% + 0.08em),
+    var(--danger) calc(50% + 0.18em),
+    transparent calc(50% + 0.18em)
+  );
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.task.done .check {
+  background: var(--accent);
+}
+
+.task.done .check::after {
+  content: "✓";
+  color: #fff;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.icon-button {
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 1.3rem;
+  padding: 0.5rem 0.75rem;
+  line-height: 1;
+}
+
+/* --- テンプレートの中身 --- */
+
+.template-items {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.template-items li {
+  border-bottom: 1px solid var(--line);
+}
+
+.template-items li > * {
+  vertical-align: middle;
+}
+
+.template-items li {
+  display: list-item;
+}
+
+.template-items li span {
+  display: inline-block;
+  padding: 0.5rem 0;
+  width: calc(100% - 3rem);
+  word-break: break-word;
+}
+
+.template-items li form {
+  display: inline-block;
+}

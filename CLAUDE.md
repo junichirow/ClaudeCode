@@ -9,6 +9,7 @@ Python の小さな学習・実験用リポジトリ。アプリごとにサブ�
 - `now_app/now.py` — 現在の日本時間を `YYYY年MM月DD日 HH時MM分SS秒` 形式で表示する。標準ライブラリのみ
 - `todo_app/` — Flask + SQLite の TODO リスト Web アプリ
 - `setlist_app/` — バンド向けセットリスト管理 Web アプリ（Flask-Login でユーザーごとにデータを分離。ローカルは SQLite、本番は Render + Supabase PostgreSQL）
+- `todo2_app/` — 家族で共有するタスクリスト（Flask + Supabase、Vercel で公開。PWA でホーム画面に追加できる）。詳細は `todo2_app/README.md`
 - `game_app/` — HTML/CSS/JS（Canvas）だけのシューティングゲーム。ビルド不要
 - `game2_app/` — 同じく Canvas だけの横スクロールアクション（クマがパンチ・ジャンプ・レーザーで戦う全 4 ステージ。1 面は森でシロクマ、2 面は竹林でパンダ、3 面は水中（重力が弱くジャンプがゆるやか）でサメ、4 面は 1 面を難しくした夕暮れの森でパワーアップしたシロクマがボス）。PC はキーボード、スマホは画面下のボタンで操作
 - 2つのゲームは `.github/workflows/pages.yml` で `main` へのプッシュ時に GitHub Pages へ公開（`game_app` がサイトのトップ、`game2_app` が `/game2/`）
@@ -35,6 +36,11 @@ pip install -r setlist_app/requirements.txt
 cp setlist_app/.env.example setlist_app/.env  # SECRET_KEY を入れる
 cd setlist_app && python app.py           # http://127.0.0.1:5002 で起動
 cd setlist_app && python -m unittest -v   # テスト
+
+pip install -r todo2_app/requirements.txt
+cp todo2_app/.env.example todo2_app/.env  # SECRET_KEY と FAMILY_PASSWORD を入れる
+cd todo2_app && python app.py             # http://127.0.0.1:5003 で起動
+cd todo2_app && python -m unittest -v     # テスト
 ```
 
 ## setlist_app の構成
@@ -56,6 +62,19 @@ cd setlist_app && python -m unittest -v   # テスト
 - 曲順は `SetlistItem.position`。並べ替えは ↑↓ ボタン（POST）で隣と入れ替え、削除時は `Setlist.renumber()` で振り直す
 - Render 上（環境変数 `RENDER` あり）では `ProxyFix` で HTTPS を判別し、クッキーを Secure にする。`after_request` で `X-Frame-Options` などのセキュリティヘッダーを付け、`MAX_CONTENT_LENGTH` は 1MB
 - Render の Web サービスは `render.yaml` ではなくダッシュボードで手動作成（Root Directory `setlist_app`、Python は `.python-version` で 3.13）
+
+## todo2_app の構成
+
+- Vercel の Flask ランタイムで動かす。入口は `app.py`（モジュールの `app` を Vercel が読む）で、ファクトリ `create_app()` は `webapp.py`。テストは `webapp` から import するので `app.py` は読まない
+- ログインは家族共通の合言葉（環境変数 `FAMILY_PASSWORD`）。セッションに `logged_in` を入れ、1 年有効。ユーザーの区別は無く全データを家族で共有
+  - セッションには合言葉から作った目印（`pw`、`SECRET_KEY` で HMAC）も入れ、毎リクエスト照合する。合言葉を変えると全員ログアウトされる
+  - 入力ミスは `LoginFailure` 表に記録し、同じ IP で 15 分に 10 回で 429（サーバーレスでメモリに持てないので DB）
+  - Vercel 上では `SECRET_KEY` 32 文字未満・`FAMILY_PASSWORD` 8 文字未満だと起動時に例外
+  - CSP は `script-src 'self'` などで厳しくしているので、テンプレートにインラインの `<script>` や `style=` を書かない
+- 本番 DB は Supabase の **Transaction pooler（6543）**。サーバーレスなので `NullPool`、pooler 用に psycopg の `prepare_threshold=None` でプリペアドステートメントを切る（`webapp.py` の `engine_options()`）。setlist_app と同じく起動時に `create_all()` と RLS の有効化をする
+- 静的ファイルは `public/`（Vercel は CDN から配信）。Flask も `static_folder="public", static_url_path=""` で同じ URL（`/style.css` など）で出す。`manifest.webmanifest` と `sw.js` はスコープのためサイトのルートに置く
+- 完了の切り替えは `public/app.js` が fetch（`Accept: application/json` と `X-CSRFToken`）で送り、その場で `.task.done` を付け外しする。二重線は CSS の背景グラデーションで描く
+- `vercel.json` で関数のリージョンを東京（`hnd1`）にしている。Vercel のプロジェクトはダッシュボードで作成（Root Directory `todo2_app`）
 
 ## todo_app の構成
 

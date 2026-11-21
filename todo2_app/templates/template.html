@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ template.name }} - {% endblock %}
+{% block content %}
+  <section class="card">
+    <p class="crumb"><a href="{{ url_for('main.templates') }}">← テンプレート</a></p>
+    <h1>{{ template.name }}</h1>
+
+    {% if template.items %}
+      <ol class="template-items">
+        {% for item in template.items %}
+          <li>
+            <span>{{ item.title }}</span>
+            <form method="post" action="{{ url_for('main.delete_template_item', item_id=item.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="icon-button" aria-label="「{{ item.title }}」を削除">×</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ol>
+    {% else %}
+      <p class="muted">中身がありません。下から追加してください。</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('main.add_template_items', template_id=template.id) }}" class="add-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea name="title" rows="3" placeholder="例：&#10;はみがき&#10;着がえ&#10;ハンカチを持つ" required></textarea>
+      <button type="submit" class="primary">追加</button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>このテンプレートでリストを作る</h2>
+    <form method="post" action="{{ url_for('main.use_template', template_id=template.id) }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="name" value="{{ template.name }}" maxlength="100" placeholder="リストの名前">
+      <button type="submit" class="primary">リストを作る</button>
+    </form>
+  </section>
+
+  <details class="card">
+    <summary>テンプレートの設定</summary>
+    <form method="post" action="{{ url_for('main.rename_template', template_id=template.id) }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="name" value="{{ template.name }}" maxlength="100" required>
+      <button type="submit">名前を変える</button>
+    </form>
+    <form method="post" action="{{ url_for('main.delete_template', template_id=template.id) }}" data-confirm="テンプレート「{{ template.name }}」を削除しますか？（作ったリストは残ります）">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="danger">このテンプレートを削除</button>
+    </form>
+  </details>
+{% endblock %}

@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ task_list.name }} - {% endblock %}
+{% block content %}
+  {% set total = task_list.tasks|length %}
+  <section class="card">
+    <div class="title-row">
+      <h1>{{ task_list.name }}</h1>
+      <span class="count" data-progress>{{ task_list.done_count }} / {{ total }}</span>
+    </div>
+
+    {% if task_list.tasks %}
+      <ul class="tasks">
+        {% for task in task_list.tasks %}
+          <li class="task {{ 'done' if task.done }}">
+            <form method="post" action="{{ url_for('main.toggle_task', task_id=task.id) }}" class="toggle-form">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="task-toggle" aria-pressed="{{ 'true' if task.done else 'false' }}">
+                <span class="check" aria-hidden="true"></span>
+                <span class="task-title">{{ task.title }}</span>
+              </button>
+            </form>
+            <form method="post" action="{{ url_for('main.delete_task', task_id=task.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="icon-button" aria-label="「{{ task.title }}」を削除">×</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">タスクがありません。下から追加してください。</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('main.add_tasks', list_id=task_list.id) }}" class="add-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <textarea name="title" rows="1" placeholder="タスクを追加（改行で複数まとめて）" required></textarea>
+      <button type="submit" class="primary">追加</button>
+    </form>
+  </section>
+
+  <section class="card actions">
+    <form method="post" action="{{ url_for('main.reset_list', list_id=task_list.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit">↺ 全部もどす</button>
+    </form>
+    <form method="post" action="{{ url_for('main.clear_done', list_id=task_list.id) }}" data-confirm="終わったタスクを消しますか？">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit">終わったものを消す</button>
+    </form>
+  </section>
+
+  <details class="card">
+    <summary>リストの設定</summary>
+    <form method="post" action="{{ url_for('main.rename_list', list_id=task_list.id) }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="name" value="{{ task_list.name }}" maxlength="100" required>
+      <button type="submit">名前を変える</button>
+    </form>
+    <form method="post" action="{{ url_for('main.save_as_template', list_id=task_list.id) }}" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="name" value="{{ task_list.name }}" maxlength="100" placeholder="テンプレートの名前">
+      <button type="submit">テンプレートとして保存</button>
+    </form>
+    <form method="post" action="{{ url_for('main.delete_list', list_id=task_list.id) }}" data-confirm="「{{ task_list.name }}」を削除しますか？">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="danger">このリストを削除</button>
+    </form>
+  </details>
+{% endblock %}
